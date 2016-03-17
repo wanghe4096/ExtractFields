@@ -29,7 +29,40 @@ def list_all_source_type(source_types, props):
         print sname
 
 
-def processing_transform_stanza(transforms):
+stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
+
+def processing_transform_stanza(transforms, transform_stanza, prefix=''):
+    # see the description
+    # http://docs.splunk.com/Documentation/Splunk/latest/Admin/Transformsconf
+
+    if transform_stanza not in transforms:
+        print 'transform %s not found' % transform_stanza
+        exit(-1)
+    transform_define = transforms[transform_stanza]
+    regex_expr = transform_define['REGEX']
+    #regex_expr = regex_expr.strip()
+    print prefix, transform_stanza, ":", regex_expr
+    # in regex, might have some macro.
+    # use regex to strip them out
+    stanza_set = set()
+    for match in stanza_re.finditer(regex_expr):
+        expr = match.group(1)
+        toks = expr.split(':')
+        expr_name = '_'
+        if len(toks) == 1:
+            stanza_name = toks[0]
+        if len(toks) == 2:
+            stanza_name, expr_name = toks
+        if len(toks) > 2:
+            print 'unknown stanze format %s'% expr
+            exit(-1)
+
+        stanza_set.add(stanza_name)
+        print prefix, ' ', expr_name, '->', stanza_name
+    if stanza_set:
+        print prefix, '  -----------'
+    for stanza in stanza_set:
+        processing_transform_stanza(transforms, stanza, prefix=prefix+'  ')
     pass
 
 
@@ -51,7 +84,10 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
             transform_stanza_list.insert(0, '_raw')
             transform_stanza_list.append('result')
             print 'pipe:\t', ' -> '.join(transform_stanza_list)
-            pass
+            transform_stanza_list = v.split(',')
+            for transform_stanza in transform_stanza_list:
+                processing_transform_stanza(transforms, transform_stanza)
+
         if k.startswith('EXTRACT-'):
             # local extract
             # eg. EXTRACT-<class> = [<regex>|<regex> in <src_field>]
