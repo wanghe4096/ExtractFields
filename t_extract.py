@@ -15,6 +15,10 @@ import os
 import sys
 import re
 import spl_common
+import lupa
+from lupa import LuaRuntime
+from jinja2 import Environment, FileSystemLoader
+
 
 
 def list_all_source_type(source_types, props):
@@ -104,6 +108,14 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
 
 
 def extract(source_types, source_type, props, transforms, log_file):
+    """
+     1 compile to LUA code via jinja2 template
+     2 execute the lua code, strip struct code.
+    """
+    env = Environment(loader=FileSystemLoader('templates'))
+    template = env.get_template('extract.jinja2.lua')
+    lua_code_generated = template.render(foo='Hello World!')
+    print lua_code_generated
     pass
 
 
