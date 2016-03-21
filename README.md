@@ -10,6 +10,8 @@ pip install -r requirements.txt
 安装 luajit
 >
     wget -c http://luajit.org/download/LuaJIT-2.0.4.tar.gz
+    CFLAGS=-fPIC make
+    sudo make install
 
 安装 lua 的依赖关系
 >
@@ -21,3 +23,9 @@ pip install -r requirements.txt
 
 luarocks install lrexlib-PCRE
 
+
+## Test
+
+假定在 ../LogSample 中存在要分析的日志文件
+ python t_extract.py etc access_combined ../LogSample/apache/access_log
+ python t_extract.py etc catalina ../LogSample/tomcat/catalina1_part_aa

@@ -15,10 +15,7 @@ import os
 import sys
 import re
 import spl_common
-import lupa
-from lupa import LuaRuntime
 from jinja2 import Environment, FileSystemLoader
-
 
 
 def list_all_source_type(source_types, props):
@@ -116,7 +113,16 @@ def extract(source_types, source_type, props, transforms, log_file):
     template = env.get_template('extract.jinja2.lua')
     lua_code_generated = template.render(foo='Hello World!')
     print lua_code_generated
-    pass
+    # write to ...
+    fname = "_t.lua"
+    with open(fname, 'w') as fh:
+        fh.write(lua_code_generated)
+    # do execute
+    try:
+        os.system("luajit %s < %s" % (fname, log_file))
+    finally:
+        os.remove(fname)
+    # remove the lua source.
 
 
 if __name__ == '__main__':
