@@ -1,5 +1,4 @@
 local rex_pcre = require "rex_pcre"
-local class = require 'class'
 
 -- print( rex_pcre.new("[0-9]+"):exec("1234") )
 -- print( rex_pcre.new("\\d+"):exec("{{ foo }}1234") )
@@ -8,20 +7,20 @@ local class = require 'class'
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
 
-local EventFeed = class('EventFeed')
+EventFeed = {
+    line_pos = 0,
+    -- prealloc {{ max_events }} entry, to avoid table's realloc
+    lines = { {% for i in range(0, max_events+1)%}'', {% endfor %} }
+}
 
-function EventFeed:__init(stuff)
-  self.stuff = stuff
+function EventFeed:new(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
 end
 
 function EventFeed:feed(new_line)
-  --pass data to the feeder line by line
-    print(self.stuff)
-end
-
-
-function EventFeed:new_event()
-  print(self.stuff)
 end
 
 a = {n=10 }
@@ -33,6 +32,6 @@ local count = 1
 while true do
     local line = io.read()
     if line == nil then break end
-    io.write(string.format("%6d  ", count), line, "\n")
+    -- io.write(string.format("%6d  ", count), line, "\n")
     count = count + 1
 end

@@ -1,6 +1,7 @@
 ## Summary
 
-系统需要使用 Python 生成 LUA 代码，进行实际的数据处理
+[del]系统需要使用 Python 生成 LUA 代码，进行实际的数据处理[/del]
+改为直接生成 LUA 脚本，调用外部程序
 
 ## Install
 
@@ -20,6 +21,8 @@ pip install -r requirements.txt
     ./configure
     make
     sudo make install
+
+此处配置时，需要指明 luajit 的 include 位置
 
 luarocks install lrexlib-PCRE
 

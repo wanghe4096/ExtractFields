@@ -109,9 +109,18 @@ def extract(source_types, source_type, props, transforms, log_file):
      1 compile to LUA code via jinja2 template
      2 execute the lua code, strip struct code.
     """
+    if source_type not in props:
+        print 'source %s not found' % source_type
+        exit(-1)
+
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('extract.jinja2.lua')
-    lua_code_generated = template.render(foo='Hello World!')
+    # read the source type
+    # read option value
+    # ref: http://docs.splunk.com/Documentation/Splunk/6.2.2/Data/Indexmulti-lineevents
+    max_events = props[source_type].get('MAX_EVENTS', 256)
+
+    lua_code_generated = template.render(foo='Hello World!', max_events=max_events)
     print lua_code_generated
     # write to ...
     fname = "_t.lua"
