@@ -9,6 +9,8 @@
             python t_extract.py etc access_combined
 
     3  给定 source_type　和　具体的日志文件，　显示解析后的结果
+        eg.
+            python t_extract.py etc access_combined ../LogSample/apache/access_log
 
 """
 import os
@@ -88,7 +90,7 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
             transform_stanza_list = v.split(',')
             for transform_stanza in transform_stanza_list:
                 processing_transform_stanza(transforms, transform_stanza)
-
+        # TODO: deal TRANSFORMS-
         if k.startswith('EXTRACT-'):
             # local extract
             # eg. EXTRACT-<class> = [<regex>|<regex> in <src_field>]
@@ -118,9 +120,28 @@ def extract(source_types, source_type, props, transforms, log_file):
     # read the source type
     # read option value
     # ref: http://docs.splunk.com/Documentation/Splunk/6.2.2/Data/Indexmulti-lineevents
-    max_events = props[source_type].get('MAX_EVENTS', 256)
+    # ref: https://answers.splunk.com/answers/338978/can-i-use-the-parameters-break-only-beforeddd-and-1.html
+    # You cannot have both of these lines for a single input. Splunk will use one of them, but ignore the other.
+    #  There will probably be a message in splunkd.log but that will be the only indication of the problem - except
+    # for the fact that your events will not break the way you want!
+    max_events = int(props[source_type].get('MAX_EVENTS', props['default'].get('MAX_EVENTS', 250)))
+    line_merge = props[source_type].get('SHOULD_LINEMERGE', props['default']['SHOULD_LINEMERGE'])
+    line_breaker = props[source_type].get('LINE_BREAKER', props['default'].get('LINE_BREAKER', '([\\r\\n]+)'))
+    """
+        BREAK_ONLY_BEFORE_DATE | BREAK_ONLY_BEFORE | MUST_BREAK_AFTER | MUST_NOT_BREAK_AFTER | MUST_NOT_BREAK_BEFORE | MAX_EVENTS
+        works only when SHOULD_LINEMERGE is true.
 
-    lua_code_generated = template.render(foo='Hello World!', max_events=max_events)
+        TRUNCATE | LINE_BREAKER | LINE_BREAKER_LOOKBEHIND works all the time.
+            1 break into lines
+            2 line merge
+    """
+    print '--------', line_breaker, (line_merge and True), line_merge
+    options = {
+        'default_linebreaker': not line_merge,
+        'multiline': line_merge and True
+    }
+    print options
+    lua_code_generated = template.render(max_events=max_events, options=options)
     print lua_code_generated
     # write to ...
     fname = "_t.lua"
