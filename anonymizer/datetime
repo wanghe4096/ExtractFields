@@ -1,0 +1,37 @@
+_year = '(?P<year>(20\d\d|19\d\d|[901]\d(?!\d)))'
+_month = '(?P<month>(0?[1-9]|1[012])(?!:))'
+_litmonth = '(?P<litmonth>jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z,\.;]*'
+#_litmonth = '(?P<litmonth>(?<![\d\w])(jan|\x{3127}\x{6708}|feb|\x{4E8C}\x{6708}|mar|\x{4E09}\x{6708}|apr|\x{56DB}\x{6708}|may|\x{4E94}\x{6708}|jun|\x{516D}\x{6708}|jul|\x{4E03}\x{6708}|aug|\x{516B}\x{6708}|sep|\x{4E5D}\x{6708}|oct|\x{5341}\x{6708}|nov|\x{5341}\x{3127}\x{6708}|dec|\x{5341}\x{4E8C}\x{6708})[a-z,\.;]*)'
+_allmonth = '(?:' + _litmonth + '|' + _month + ')'
+_day='(?P<day>(0?[1-9]|[12]\d|3[01]))'
+_usday=_day+'(?:st|nd|rd|th|[,\.;])?'
+_hour='(?P<hour>([01]?[1-9]|[012][0-3])(?!\d))'
+_minute='(?P<minute>([0-6]\d)(?!\d))'
+_second='(?P<second>([0-6]\d)(?!\d))'
+_zone='(?P<zone>((?:(?:UT|UTC|GMT(?![+-])|CET|CEST|CETDST|MET|MEST|METDST|MEZ|MESZ|EET|EEST|EETDST|WET|WEST|WETDST|MSK|MSD|IST|JST|KST|HKT|AST|ADT|EST|EDT|CST|CDT|MST|MDT|PST|PDT|CAST|CADT|EAST|EADT|WAST|WADT|Z)|(?:GMT)?[+-]\d\d?:?(?:\d\d)?)(?!\w))?)'
+_ampm = '(?P<ampm>[ap][m.]+)'
+#_ampm='(?P<ampm>([ap]m(?:[^A-Za-z0-9]|$)|[\x{4E0A}\x{4E0B}]\x{5348})?)'
+
+_time= '(?<!\d)' + _hour + ':' + _minute + ':' + _second + '(?:(?: \d{4})?[:,\.](\d+))? {0,2}' + _ampm + '{0,2}' + _zone + '(?!:\d)'
+#_hmtime='(?<!\d)' +_hour + ':'+_minute + '(?: ([ap]m(?:[^A-Za-z0-9]|$)|[\x{4E0A}\x{4E0B}]\x{5348}))?(?!:[:\d])'
+_dottime='(?<![\d\.])([01]\d|2[0-3])\.'+_minute+'(?:\.?'+_second+'(?:[:,]\d+)?(?:\.(\d\d\d\d+))?) {0,2}'+_zone+'(?![0-9\.])'
+_combdatetime='(?<![\d\.])(20\d\d)(0\d|1[012])([012]\d|3[01])[.-]?([01]\d|2[0123])([0-6]\d)([0-6]\d)(?:\.?(\d+))?\s*' + _zone
+_combdatetime2='(?<![\d\.])(20\d\d)([-/])([01]?\d)\2([012]?\d|3[01])\s+([012]?\d):([0-6]?\d):([0-6]?\d)\s*' + _zone
+
+_usdate='(?<!\w|\d[:\.\-])'+_allmonth+'([/\- ]) {0,2}'+_day+'(?!:) {0,2}(?:\d\d:\d\d:\d\d(?:[\.\,]\d+)? {0,2}'+_zone+')?((?:\3|,) {0,2}'+_year+')?(?!/|\w|\.\d)'
+_usdate1='(?<!\w|\d[:\.\-])'+_litmonth+'([/\- ]) {0,2}'+_day+'(?!:) {0,2}(?:\d\d:\d\d:\d\d(?:[\.\,]\d+)? {0,2}'+_zone+')?((?:\2|,) {0,2}'+_year+')?(?!/|\w|\.\d)'
+_usdate2='(?<!\w|\d[:\.\-])'+_month+'([/\-])'+_day+'(?!:)(?:\d\d:\d\d:\d\d(?:[\.\,]\d+)? {0,2}'+_zone+')?((?:\2)'+_year+')?(?!/|\w|\.\d)'
+_isodate='(?<![\w\d])'+_year+'([\./\- ])'+_allmonth+'(?!\d)(?:[\./\- ] {0,2})?'+_day+'(?!/)(?:(?=T)|(?!\w)(?!\.\d))'
+_eurodate1='(?<![\w\.])'+_usday+'([\- /]) {0,2}'+_allmonth+'\2 {0,2}'+_year+'(?![\w\.])'
+_eurodate2='(?<![\w\.])'+_usday+'\.'+_allmonth+'\.'+_year+'(?![\w\.])'
+_bareurlitdate='(\d\d?)\|\|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\|\|(20\d\d)'
+_orddate='\s([01]\d)([0123]\d\d)\s'
+_masheddate='(?:^|source::).*?(?<!\d|\d\.|-)(?:20)?([901]\d)(0\d|1[012])([012]\d|3[01])(?!\d|-| {2,})'
+_masheddate2='(?:^|source::).*?(?<!\d|\d\.)(0\d|1[012])([012]\d|3[01])(?:20)?([901]\d)(?!\d| {2,})'
+_utcepoch='((?<=^|[\s#,\"=\(\[\|\{])(?:1[012345]|9)\d{8}|^@[\da-fA-F]{16,24})(?:\.?(\d{1,6}))?(?![\d\(])'
+
+timePatterns = [_time, _dottime,_combdatetime,_combdatetime2,_utcepoch]
+datePatterns = [_usdate,_usdate1,_usdate2, _isodate, _eurodate1, _eurodate2, _bareurlitdate, _orddate, _combdatetime, _masheddate, _masheddate2, _combdatetime2]
+
+minYear = 2000
+maxYear = 2016
