@@ -12,6 +12,11 @@
         eg.
             单行:python t_extract.py etc access_combined samples/apache.log
             多行:python t_extract.py etc catalina samples/ANON-catalina.log
+    4 获得时间戳正则
+        eg.
+                python      #进入命令行
+                from t_extract import *
+                getTimeInfoTuplet('anonymizer/anonymizer-time.ini')
 
 """
 import os
@@ -20,6 +25,31 @@ import re
 import spl_common
 from jinja2 import Environment, FileSystemLoader
 
+def getTimeInfoTuplet(timestampconfilename):
+    text = readText(timestampconfilename)
+    text = text.replace('\\n', '\n').replace('\n\n', '\n')
+    exec(text)
+    compiledTimePatterns = compilePatterns(timePatterns)
+    compiledDatePatterns = compilePatterns(datePatterns)
+    timeInfoTuplet = [compiledTimePatterns, compiledDatePatterns, minYear, maxYear]
+    print timeInfoTuplet
+
+def readText(filename):
+    try:
+        f = open(filename, 'r')
+        text = f.read()
+        f.close()
+        return text
+    except Exception, e:
+        print '*** Error reading file', filename, ':', e
+        return ""
+
+def compilePatterns(formats):
+    compiledList = list()
+    for format in formats:
+        #print str(format)
+        compiledList.append(re.compile(format, re.I))
+    return compiledList
 
 def multiline(sourcetype,props_conf,logfile):
     sourcetype="catalina"
@@ -225,6 +255,7 @@ def extract(source_types, source_type, props, transforms, log_file):
 
 
 if __name__ == '__main__':
+
     fpath = sys.argv[1]
 
     conf_path = os.path.join(fpath, 'system', 'default')
