@@ -11,12 +11,15 @@
     3  给定 source_type　和　具体的日志文件，　显示解析后的结果
         eg.
             python t_extract.py etc access_combined ../LogSample/apache/access_log
+            # 测试 custom line-breaker
+            python t_extract.py etc wmi ./samples/splunk-wmi.log
 
 """
 import os
 import sys
 import re
 import spl_common
+from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -125,8 +128,11 @@ def extract(source_types, source_type, props, transforms, log_file):
     #  There will probably be a message in splunkd.log but that will be the only indication of the problem - except
     # for the fact that your events will not break the way you want!
     max_events = int(props[source_type].get('MAX_EVENTS', props['default'].get('MAX_EVENTS', 250)))
-    line_merge = props[source_type].get('SHOULD_LINEMERGE', props['default']['SHOULD_LINEMERGE'])
+    line_merge = props[source_type].get('SHOULD_LINEMERGE', props['default'].get('SHOULD_LINEMERGE', 'True'))
+    line_merge = strtobool(line_merge)
     line_breaker = props[source_type].get('LINE_BREAKER', props['default'].get('LINE_BREAKER', '([\\r\\n]+)'))
+    default_line_breaker = line_breaker in ['([\\r\\n]+)', '[\\r\\n]+']
+
     """
         BREAK_ONLY_BEFORE_DATE | BREAK_ONLY_BEFORE | MUST_BREAK_AFTER | MUST_NOT_BREAK_AFTER | MUST_NOT_BREAK_BEFORE | MAX_EVENTS
         works only when SHOULD_LINEMERGE is true.
@@ -135,12 +141,15 @@ def extract(source_types, source_type, props, transforms, log_file):
             1 break into lines
             2 line merge
     """
-    print '--------', line_breaker, (line_merge and True), line_merge
+    #print '--------', line_breaker, (line_merge and True), line_merge
+    #FIXME: escape regex-expr
     options = {
-        'default_linebreaker': not line_merge,
+        'default_linebreaker': default_line_breaker,
+        'custom_linebreaker': not default_line_breaker,
+        'linebreaker_regex': line_breaker,
         'multiline': line_merge and True
     }
-    print options
+    #print options
     lua_code_generated = template.render(max_events=max_events, options=options)
     print lua_code_generated
     # write to ...
@@ -151,7 +160,8 @@ def extract(source_types, source_type, props, transforms, log_file):
     try:
         os.system("luajit %s < %s" % (fname, log_file))
     finally:
-        os.remove(fname)
+        #os.remove(fname)
+        pass
     # remove the lua source.
 
 

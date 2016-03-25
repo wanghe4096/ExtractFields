@@ -17,18 +17,23 @@ def multiline():
     logfile = '/home/candy/source/fieldExtract/samples/catalina'
     log = open(logfile)
     print logfile,'===>>>open'
+
     print '2.读取props文件节的默认配置'
     sourcetype_stanza_props = props_conf['default']
     print sourcetype_stanza_props
+
     print '3.获得sourcetype所对应的props文件节的配置覆盖默认的配置'
     for (k,v) in props_conf[sourcetype].items():
         sourcetype_stanza_props[k] = v
     print props_conf[sourcetype],"\n===覆盖>>>result===>>>\n",sourcetype_stanza_props
+
     print '4.当SHOULD_LINEMERGE为true时，说明需要进行多行构建，否则不需要'
     event={"sourcetype":sourcetype,"_raw":""}
     multiline_re = r'(\d+:\d+:\d)'
+
     print '默认的时间戳正则:',multiline_re
     print 'SHOULD_LINEMERGE:',sourcetype_stanza_props['SHOULD_LINEMERGE']
+
     if sourcetype_stanza_props['SHOULD_LINEMERGE']=='true':
         print '判断多行构建的正则，如果存在BREAK_ONLY_BEFORE，就用它，没有就默认用BREAK_ONLY_BEFORE_DATE'
         print 'BREAK_ONLY_BEFORE:',sourcetype_stanza_props['BREAK_ONLY_BEFORE'],':在此冒号之前为值'
