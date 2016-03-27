@@ -15,6 +15,7 @@
             python t_extract.py etc wmi ./samples/splunk-wmi.log
             单行:python t_extract.py etc access_combined samples/apache.log
             多行:python t_extract.py etc catalina samples/ANON-catalina.log
+
     4 获得时间戳正则
         eg.
                 python      #进入命令行
@@ -54,6 +55,7 @@ def compilePatterns(formats):
         #print str(format)
         compiledList.append(re.compile(format, re.I))
     return compiledList
+
 
 def multiline(sourcetype,props_conf,logfile):
     sourcetype="catalina"
@@ -243,6 +245,7 @@ def extract(source_types, source_type, props, transforms, log_file):
     """
     #print '--------', line_breaker, (line_merge and True), line_merge
     #FIXME: escape regex-expr
+    #line_breaker = line_breaker.replace('\\', "\\\\")
     options = {
         'default_linebreaker': default_line_breaker,
         'custom_linebreaker': not default_line_breaker,
@@ -258,7 +261,7 @@ def extract(source_types, source_type, props, transforms, log_file):
         fh.write(lua_code_generated)
     # do execute
     try:
-        os.system("luajit %s < %s" % (fname, log_file))
+        os.system("luajit %s %s" % (fname, log_file))
     finally:
         #os.remove(fname)
         pass
@@ -301,6 +304,8 @@ if __name__ == '__main__':
         # <bin>, <conf_path> <source_type> <log_file>,  list the source type's execute plan
         source_type = sys.argv[2]
         log_file = sys.argv[3]
+        extract(source_types, source_type, props, transforms, log_file)
+        """
         select_method = raw_input("please select method(1.extract,2.multiline): ")
         if select_method == '1' or select_method == 'extract':
             extract(source_types, source_type, props, transforms, log_file)
@@ -308,5 +313,5 @@ if __name__ == '__main__':
             multiline(source_type,props,log_file)
         else:
             print 'please input: 1 | extract | 2 | multiline'
-
+        """
 # end of file

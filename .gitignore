@@ -26,12 +26,5 @@ sentry-package.json
 /env
 /node_modules/
 /docs/_build
-example/db.sqlite
-/src/sentry/static/version
-/src/sentry/static/sentry/dist/
-/src/sentry/static/sentry/vendor/
-/src/sentry/static/sentry/admin/
-/src/sentry/static/sentry/debug_toolbar/
-/src/sentry/static/sentry/rest_framework/
-/wheelhouse
+_t.lua
 /test_cli/
