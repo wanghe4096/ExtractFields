@@ -9,7 +9,7 @@ end
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
 {% if options.get('multiline') %}
-MultiLineEventFeed = {
+local MultiLineEventFeed = {
     line_pos = 0,
     -- prealloc {{ max_events }} entry, to avoid table's realloc
     lines = { {% for i in range(0, max_events+1)%}'', {% endfor %} }
@@ -31,11 +31,46 @@ end
 local feeder = MultiLineEventFeed:new()
 {% endif -%}
 {% if options.get('default_linebreaker') %}
--- default single line
+-- default single line, use [\r\n]
+local DefaultLineBreakerFeed = {
+    delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
+    line_data = nil     -- only a small mount data <- buffer
+}
+
+function DefaultLineBreakerFeed:new(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function DefaultLineBreakerFeed:new_event(event_lines)
+    -- processing the events
+    print (event_lines)
+    print ("=====")
+end
+
+function DefaultLineBreakerFeed:feed(data)
+    -- find each [\r\n]+, in fact \n only
+    -- table to store the indices
+    local i = 0
+    while true do
+        -- if do line breaker only, speed at 220W/s  ngx_access_log
+        i = data:find("\n", i+1)    -- find 'next' newline
+        if i == nil then
+            self.line_data = '' -- the remain..
+            break
+        end
+        -- print(i)
+    end
+end
+
+
+local feeder = DefaultLineBreakerFeed:new()
 {% endif -%}
 {% if options.get('custom_linebreaker') %}
 -- custom line breaker
-CustomLineBreakerFeed = {
+local CustomLineBreakerFeed = {
     line_breaker_re = nil,
     line_data = nil
 }
