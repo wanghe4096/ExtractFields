@@ -20,7 +20,10 @@
         eg.
                 python      #进入命令行
                 from t_extract import *
-                getTimeInfoTuplet('anonymizer/anonymizer-time.ini')
+                timeInfoTuplet = getTimeInfoTuplet('anonymizer/anonymizer-time.ini')
+                text = '113.96.151.228 - - [23/Mar/2015:15:07:25 +0800] "GET /drupal7/sites/all/themes/business-sun/images/nav_bright.png HTTP/1.1" 200 1544 "http://221.176.36.22/drupal7/sites/default/files/css/css_RZjyH429I2kO-99SMK9IKUApg5hKEHgZz3_8Orrf5YI.css" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
 
 """
 import os
@@ -29,6 +32,130 @@ import re
 import spl_common
 from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
+from DateParser import _validateDate, _validateTime
+
+def pcre_subparse(vl="",l={}):
+    pl = re.compile('\[\[(.*?)\]\]')
+    ml = pl.findall(vl)
+    res = vl
+    if len(ml)>0:
+        for i in ml:
+            sl = i.split(":")
+            if len(sl)>1:
+                res = vl.replace('[['+i+']]','(?<'+sl[1]+'>'+l[sl[0]]+')')
+            else:
+                res = vl.replace('[['+i+']]',l[sl[0]])
+            vl = res
+    return res
+
+def pcre_parse(value="",transforms={}):
+    l={}
+    for (k,d) in transforms.items():
+        if type(d)==dict and d.has_key('REGEX'):
+            pa=re.compile('\?\<(.*?)\>')
+            v = d['REGEX']
+            val = v
+            li = pa.findall(v)
+            if len(li)>0:
+                for i in li:
+                    if i == "":
+                        val = v.replace('?<>','?:')
+                    v=val
+                if not v.startswith('(?') or not v.endswith(')'):
+                    l[k]='(?:'+v.replace('/','\/')+')'
+                else:
+                    l[k]=v.replace('/','\/')
+            else:
+                if not v.startswith('(?') or not v.endswith(')'):
+                    l[k]='(?:'+d['REGEX'].replace('/','\/')+')'
+                else:
+                    l[k]=d['REGEX'].replace('/','\/')
+    p = re.compile('\[\[(.*?)\]\]')
+    m = p.findall(value)
+    result = value
+    if len(m)>0:
+        result = pcre_subparse(result,l)
+        while len(p.findall(result))>0:
+            result = pcre_subparse(result,l)
+    else:
+        result = pcre_subparse(l[result],l)
+        while len(p.findall(result)) > 0:
+            result = pcre_subparse(result,l)
+    pp = re.compile('\?\<(.*?)\>')
+    mm = pp.findall(result)
+    for j in mm:
+        count = 0
+        for i in mm:
+            if j == i:
+                count = count + 1
+        if count > 1:
+            for k in range(count):
+                if len(pp.findall(result)) != len(set(pp.findall(result))):
+                    result = result.replace(j,j+str(k),k+1)
+    return result
+
+def generate_sourcetype_re(sourcetype,transforms,props_conf):
+    transforms_stanza = {}
+    for k in props_conf[sourcetype].keys():
+        if re.search('(?:TRANSFORMS-*|REPORT-*|EXTRACT-*)',k):
+            transforms_stanza[k]=transforms['default']
+            for (ke,va) in transforms[props_conf[sourcetype][k]].items():
+                transforms_stanza[k][ke] = va
+            transforms_stanza[k]['REGEX']=pcre_parse(props_conf[sourcetype][k],transforms)
+    return transforms_stanza
+
+
+def findAllDatesAndTimes(text, timeInfoTuplet):
+    global today, _MIN_YEAR, _MAX_YEAR
+
+    #timeExpressions = timeInfoTuplet[0]
+    #dateExpressions = timeInfoTuplet[1]
+    datetimeExpressions = timeInfoTuplet[2]
+    matches = getAllMatches(text, datetimeExpressions, _validateDate)
+    #matches = getAllMatches(text, dateExpressions, _validateDate)
+    #matches.extend(getAllMatches(text, timeExpressions, _validateTime))
+    return matches
+
+
+def getAllMatches(text, expressions, validator):
+    index = -1
+    matches = list()
+    mat_dict = {}
+    for expression in expressions.values():
+        index += 1
+        isvalid = True
+        match = re.search(expression,text)
+        if match:
+            print match.group(),'\n=======\n',match.groupdict()
+            print expression
+            val = {}
+            for k,v in match.groupdict().items():
+                if v != None:
+                    val[k] = v
+            mat_dict[match.group()] = expression
+    for k,v in mat_dict.items():
+        
+    return matches
+
+'''
+        for match in expression.finditer(text):
+            values = match.groupdict()
+            for k,v in values.items():
+                if v != None:
+                    val[k] = v
+            isvalid = validator(val)
+        print  '=============\n',match.group(),'\n',val
+        if isvalid:
+            matches.append(val)
+'''
+                #print "MATCHED: ", match.group()
+                #matches.append(match.span())
+                # DOING ALL EXPRESSIONS FOR OPTIMIZATION DOES NOTHING.
+                # # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
+                # # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
+                # if index > 0: # optimize search
+                #     expressions.insert(0, expressions.pop(index))
+
 
 def getTimeInfoTuplet(timestampconfilename):
     text = readText(timestampconfilename)
@@ -36,8 +163,9 @@ def getTimeInfoTuplet(timestampconfilename):
     exec(text)
     compiledTimePatterns = compilePatterns(timePatterns)
     compiledDatePatterns = compilePatterns(datePatterns)
-    timeInfoTuplet = [compiledTimePatterns, compiledDatePatterns, minYear, maxYear]
-    print timeInfoTuplet
+    compiledDateTimePatterns = compilePatterns(datetimePatterns)
+    timeInfoTuplet = [compiledTimePatterns, compiledDatePatterns, compiledDateTimePatterns,minYear, maxYear]
+    return timeInfoTuplet
 
 def readText(filename):
     try:
@@ -50,15 +178,23 @@ def readText(filename):
         return ""
 
 def compilePatterns(formats):
-    compiledList = list()
-    for format in formats:
+    compiledDict = {}
+    for (k,format) in formats.items():
+        #print '==========key=========',k
         #print str(format)
-        compiledList.append(re.compile(format, re.I))
-    return compiledList
+        #compiledDict[k] = (re.compile(format, re.I))
+        compiledDict[k] = format
+        #print compiledDict[k],'\n=============='
+    return compiledDict
 
 
+
+<<<<<<< HEAD
+def multiline(sourcetype,transforms,props_conf,logfile):
+=======
 def multiline(sourcetype,props_conf,logfile):
     sourcetype="catalina"
+>>>>>>> refs/remotes/origin/master
     print '1.read file as follow:'
     print 'props_conf'
     log = open(logfile)
@@ -74,16 +210,21 @@ def multiline(sourcetype,props_conf,logfile):
     for (k,v) in props_conf[sourcetype].items():
         sourcetype_stanza_props[k] = v
     print props_conf[sourcetype],"\n===覆盖>>>result===>>>\n",sourcetype_stanza_props
- 
+    
+    print '\n\n\n3.1获得sourcetype所对应transforms.conf转换后 的正则'
+    sourcetype_re=generate_sourcetype_re(sourcetype,transforms,props_conf)
+    print '========sourcetype_re=======\n',sourcetype_re 
 
     print '\n\n\n4.当SHOULD_LINEMERGE为true时，说明需要进行多行构建，否则不需要'
     event={"sourcetype":sourcetype,"_raw":""}
     multiline_re = r'(\d+:\d+:\d)'
     print '默认的时间戳正则:',multiline_re
     print 'SHOULD_LINEMERGE:',sourcetype_stanza_props['SHOULD_LINEMERGE']
-    if sourcetype_stanza_props['SHOULD_LINEMERGE']=='true':
+
+    if strtobool(sourcetype_stanza_props['SHOULD_LINEMERGE']):
         print '判断多行构建的正则，如果存在BREAK_ONLY_BEFORE，就用它，没有就默认用BREAK_ONLY_BEFORE_DATE'
         print 'BREAK_ONLY_BEFORE:',sourcetype_stanza_props['BREAK_ONLY_BEFORE'],':在此冒号之前为值'
+
         if sourcetype_stanza_props['BREAK_ONLY_BEFORE']:
             print multiline_re,'===>>>',sourcetype_stanza_props['BREAK_ONLY_BEFORE']
             multiline_re = sourcetype_stanza_props['BREAK_ONLY_BEFORE']
@@ -96,6 +237,7 @@ def multiline(sourcetype,props_conf,logfile):
             linecount = 0
             count = 0
             print '单行读取进行多行event构建'
+
             for line in log:
                 if re.search(multiline_re,line):
                     if linecount >= 1:
@@ -107,6 +249,7 @@ def multiline(sourcetype,props_conf,logfile):
                     count = count + 1
                     event['_raw']=str(count)+'\t'+line
                     print '\n\n\n===============事件开始===============\n',event['_raw']
+
                 else:
                     linecount = linecount + 1
                     count = count + 1
@@ -115,12 +258,14 @@ def multiline(sourcetype,props_conf,logfile):
                     print "===========多行合并 " + str(linecount-1) +" 次===========\n"
                     print event['_raw']
             print '===============事件结束==============='
+
     else:
         print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
         for line in log:
             event={"linecount":1,"sourcetype":sourcetype,"_raw":line}
             print event
         print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
+
     log.close()
     print logfile,'===>>>close'
 
@@ -275,7 +420,7 @@ if __name__ == '__main__':
     conf_path = os.path.join(fpath, 'system', 'default')
     fname_datatypebnf = os.path.join(conf_path, 'datatypesbnf.conf')
     fname_searchbnf = os.path.join(conf_path, 'searchbnf.conf')
-    fname_sourcetype = os.path.join(conf_path, 'sourcetypes.conf')
+    fname_sourcetype = os.path.join(conf_path, 'props_conf.conf')
     fname_props = os.path.join(conf_path, 'props.conf')
     fname_transform = os.path.join(conf_path, 'transforms.conf')
 
@@ -310,7 +455,7 @@ if __name__ == '__main__':
         if select_method == '1' or select_method == 'extract':
             extract(source_types, source_type, props, transforms, log_file)
         elif select_method == '2' or select_method == 'multiline':
-            multiline(source_type,props,log_file)
+            multiline(source_type,transforms,props,log_file)
         else:
             print 'please input: 1 | extract | 2 | multiline'
         """
