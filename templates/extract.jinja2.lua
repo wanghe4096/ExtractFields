@@ -1,12 +1,15 @@
 local rex_pcre = require "rex_pcre"
 
 -- print( rex_pcre.new("[0-9]+"):exec("1234") )
+function string.ends(String,End)
+   return End=='' or string.sub(String,-string.len(End))==End
+end
 
 -- TODO: 1 create a event emit, on_event?
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
 {% if options.get('multiline') %}
-MultiLineEventFeed = {
+local MultiLineEventFeed = {
     line_pos = 0,
     -- prealloc {{ max_events }} entry, to avoid table's realloc
     lines = { {% for i in range(0, max_events+1)%}'', {% endfor %} }
@@ -28,16 +31,48 @@ end
 local feeder = MultiLineEventFeed:new()
 {% endif -%}
 {% if options.get('default_linebreaker') %}
--- default single line
+-- default single line, use [\r\n]
+local DefaultLineBreakerFeed = {
+    delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
+    line_data = nil     -- only a small mount data <- buffer
+}
+
+function DefaultLineBreakerFeed:new(o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
+function DefaultLineBreakerFeed:new_event(event_lines)
+    -- processing the events
+    print (event_lines)
+    print ("=====")
+end
+
+function DefaultLineBreakerFeed:feed(data)
+    -- find each [\r\n]+, in fact \n only
+    -- table to store the indices
+    local i = 0
+    while true do
+        -- if do line breaker only, speed at 220W/s  ngx_access_log
+        i = data:find("\n", i+1)    -- find 'next' newline
+        if i == nil then
+            self.line_data = '' -- the remain..
+            break
+        end
+        -- print(i)
+    end
+end
+
+
+local feeder = DefaultLineBreakerFeed:new()
 {% endif -%}
 {% if options.get('custom_linebreaker') %}
 -- custom line breaker
-CustomLineBreakerFeed = {
-    line_pos = 0,
+local CustomLineBreakerFeed = {
     line_breaker_re = nil,
-    -- prealloc {{ max_events }} entry, to avoid table's realloc
-    -- should enlarger max_events if ...
-    lines = ""
+    line_data = nil
 }
 
 function CustomLineBreakerFeed:new(o)
@@ -48,37 +83,49 @@ function CustomLineBreakerFeed:new(o)
     return o
 end
 
-function CustomLineBreakerFeed:is_breaker(new_line)
-    -- print (new_line)
-    -- print ("=====")
-    return (nil ~= (self.line_breaker_re:exec(new_line)))
+function CustomLineBreakerFeed:new_event(event_lines)
+    -- processing the events
+    print (event_lines)
+    print ("=====")
 end
 
-function CustomLineBreakerFeed:feed(new_line)
-    if self.line_pos >= {{ max_events }} then
-        -- should log the event..
-        return false
+function CustomLineBreakerFeed:feed(data)
+    -- each time read buffer_size's length data. try find line_breaker_re in the buffer, if not store it.
+    local buffer = nil
+    if self.line_data ~= nil then
+        buffer = self.line_data..data
+    else
+        buffer = data   -- fast path
     end
-    -- fixme: many cause many memory relloc, but if we use string-builder, it can NOT do regex:exec, so...
-    self.lines = self.lines .. new_line
-    -- check should break
-    if self:is_breaker(self.lines) then
-        print(new_line)
-        return false
-    end
-    -- self.line_pos = self.line_pos + 1
-    return true
+
+    local match_pos = 1
+    while true do
+        local b, e, _ = self.line_breaker_re:exec(buffer, match_pos)
+        if b ~= nil then
+            -- for fast processing subset a string is NOT require.
+            local event_lines = (buffer.sub(buffer, match_pos, b))
+            match_pos = e + 1
+            self:new_event(event_lines)
+        else
+            self.line_data = buffer
+            break
+        end
+    end -- end wile
+
 end
 
 local feeder = CustomLineBreakerFeed:new()
 {% endif %}
--- read data from stdin line by line, and output them by append line no.
-local count = 1
+
+local data_file = arg[1]
+-- read buffer from stdin
+local buffer_size = 2^16    -- make a 64k buffer. use this buffer make reading faster.
+local f = io.open(data_file, "rb")
 while true do
-    -- with *all , no strip the line-end
-    local line = io.read("*all")
-    if line == nil then break end
-    io.write(string.format("%6d  ", count), line, "\n")
-    feeder:feed(line)
-    count = count + 1
+    local block = f:read(buffer_size)
+    if not block then break end
+    -- io.write(block)
+    feeder:feed(block)
 end
+f:close()
+-- end of file
