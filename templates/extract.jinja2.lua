@@ -44,24 +44,55 @@ function DefaultLineBreakerFeed:new(o)
     return o
 end
 
-function DefaultLineBreakerFeed:new_event(event_lines)
+function DefaultLineBreakerFeed:new_event(event_lines, b, e)
     -- processing the events
-    print (event_lines)
-    print ("=====")
+    -- do regex
+
+    -- print(event_lines:sub(b, e))
 end
 
 function DefaultLineBreakerFeed:feed(data)
     -- find each [\r\n]+, in fact \n only
     -- table to store the indices
     local i = 0
+    local nexti = 0
     while true do
         -- if do line breaker only, speed at 220W/s  ngx_access_log
-        i = data:find("\n", i+1)    -- find 'next' newline
-        if i == nil then
-            self.line_data = '' -- the remain..
+        nexti = data:find("\n", i+1)    -- find 'next' newline
+        if nexti == nil then
+            self.line_data = data:sub(i+1) -- the remain..
+            --print(self.line_data)
+            --exit()
             break
         end
+
+        -- check is \r\n
+        if data:byte(nexti-1) == 13 then
+            -- patch self.line_data
+            if self.line_data ~= nil then
+                local line_data = self.line_data..data:sub(1, nexti-2)
+                self:new_event(line_data, 1, line_data:len())
+                self.line_data = nil
+            else
+                self:new_event(data, i+1, nexti-2)
+            end
+        else
+            if self.line_data ~= nil then
+                local line_data = self.line_data..data:sub(1, nexti-1)
+                self:new_event(line_data, 1, line_data:len())
+                self.line_data = nil
+            else
+                self:new_event(data, i+1, nexti-1)
+            end
+        end
+        i = nexti
         -- print(i)
+    end
+end
+
+function DefaultLineBreakerFeed:finished(data)
+    if self.line_data ~= nil then
+        self:new_event(self.line_data, 1, self.line_data:len())
     end
 end
 
@@ -123,7 +154,10 @@ local buffer_size = 2^16    -- make a 64k buffer. use this buffer make reading f
 local f = io.open(data_file, "rb")
 while true do
     local block = f:read(buffer_size)
-    if not block then break end
+    if not block then
+        feeder:finished()
+        break
+    end
     -- io.write(block)
     feeder:feed(block)
 end
