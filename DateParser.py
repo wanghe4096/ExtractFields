@@ -8,7 +8,7 @@ _debug = False
 
 HOUR_SECS = 60 * 60
 _MIN_YEAR = 2000
-_MAX_YEAR = 2010
+_MAX_YEAR = 2016
 now = time.localtime()
 nowYear = now[0]
 nowMonth = now[1]
@@ -225,6 +225,16 @@ def getMatch(text, expressions, validator):
     return None
 
     
+def _validateDateTime(values):
+    result = None
+    result = _validateDate(values)
+    if result:
+        result = _validateTime(values)
+    else:
+        return None
+    return result
+
+
 #litday,day,litmonth,month,year,epoch = match.groups()
 # =>
 # returns day, month, year
@@ -244,21 +254,27 @@ def _validateDate(values):
     if yvalue:
         year = yvalue
         if len(year) == 2:
-            year = add_century(int(year))
+            #year = add_century(int(year))
+            return None
         else:
             year = int(year)
         if not (_MIN_YEAR <= int(year) <= _MAX_YEAR):
             error = "bad year: " + str(yvalue)
+            print error
     if dvalue:
         day = dvalue
         day = int(day)
         if day < 1 or day > 31:
             error = "bad day: " + str(dvalue)
+            print error
+    else:
+        return None
     if mvalue:
         month = mvalue
         month = int(month)
         if month > 12 or month == 0:
             error = "bad month: " + str(mvalue)
+            print error
     if lvalue:
         litmonth = lvalue.lower()
         try:
@@ -310,14 +326,17 @@ def _validateTime(values):
                 hour = hour + 12
         if hour < 0 or hour > 23:
             error = "bad hour:", str(hour)
+            print error
     if mvalue:
         minute = int(mvalue)
         if minute < 0 or minute > 59:
             error = "bad minute:",str(minute)
+            print error
     if svalue:
         second = int(float(svalue) + 0.5)
         if second < 0 or second > 59:
             error = "bad second:", str(second)
+            print error
 
     if error:
         if _debug:

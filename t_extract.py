@@ -8,20 +8,56 @@
         eg.
             python t_extract.py etc access_combined
 
-    3  给定 source_type　和　具体的日志文件，　会有两个方法进行选择，1 表示选择extract方法 ：显示解析后的结果，2 表示选择multiline方法：多行event进行合并,并显示合并的过程和结果
+    3  给定 source_type　和　具体的日志文件
+    
+        extract方法 ：显示解析后的结果
         eg.
             python t_extract.py etc access_combined ../LogSample/apache/access_log
             # 测试 custom line-breaker
             python t_extract.py etc wmi ./samples/splunk-wmi.log
-            单行:python t_extract.py etc access_combined samples/apache.log
-            多行:python t_extract.py etc catalina samples/ANON-catalina.log
+
+            multiline方法：多行event进行合并,并显示合并的过程和结果
+            eg.
+                单行:python t_extract.py etc access_combined samples/apache.log anonymizer/anonymizer-time.ini true
+                多行:python t_extract.py etc catalina samples/ANON-catalina.log anonymizer/anonymizer-time.ini true
 
     4 获得时间戳正则
         eg.
                 python      #进入命令行
                 from t_extract import *
+                from DateParser import _validateDate, _validateTime,_validateDateTime
                 timeInfoTuplet = getTimeInfoTuplet('anonymizer/anonymizer-time.ini')
-                text = '113.96.151.228 - - [23/Mar/2015:15:07:25 +0800] "GET /drupal7/sites/all/themes/business-sun/images/nav_bright.png HTTP/1.1" 200 1544 "http://221.176.36.22/drupal7/sites/default/files/css/css_RZjyH429I2kO-99SMK9IKUApg5hKEHgZz3_8Orrf5YI.css" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"'
+                text = '<5>Mar 23 15:24:01 mysql kernel: type=1400 audit(1427095441.779:115): avc:  denied  { name_connect } for  pid=1605 comm=72733A6D61696E20513A526567 dest=11514 scontext=system_u:system_r:syslogd_t:s0 tcontext=system_u:object_r:port_t:s0 tclass=tcp_socket'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '113.96.151.228 - - [23/Mar/2015:15:07:19 +0800] "GET / HTTP/1.1" 302 20 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '<188>2015-03-23 20:02:54 YunJiSuan_Fw_E1000E_02 %%01FIB/4/log_fib(l): -DevIP=192.168.60.9; FIB timer 272 timeout!'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '<156>Apr 12 2015 12:20:34 NFJD-SW1 %%01NTP/4/STRATUM_CHANGE(l): System stratum changes from 4 to 3 after clock update.'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '<189>: 2015 Apr 13 11:15:10 CST: %ETHPORT-5-SPEED: Interface Ethernet103/1/17, operational speed changed to 1 Gbps'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '<188>Mar 23 2015 08:45:46 Quidway %%01IFNET/4/IF_STATE(l)[143635]:Interface Ethernet0/0/13 has turned into DOWN state.'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '17-Aug-2015 16:12:14.997 INFO [Thread-41] com.duowan.yy.utility.ToolUtility.doGet 执行Get===>http://dcmnew.sysop.duowan.com//webservice/agentmaintencewebservice/sendEmail?applicationKey=openapi&id=743341'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '[2015-08-13 09:58:40.161259] I [rpcsvc.c:2142:rpcsvc_set_outstanding_rpc_limit] 0-rpc-service: Configured rpc.outstanding-rpc-limit with value 16'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '<154>: 2015 Apr 12 09:17:01 CST: last message repeated 4 times'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = 'Sep 13 00:10:02 ubuntu CRON[4240]: pam_unix(cron:session): session closed for user root'
+                matches = findAllDatesAndTimes(text, timeInfoTuplet)
+
+                text = '13-Aug-2013 16:12:14.997 INFO [Thread-21] com.splunk.ip.utility.FxhfVbmvgtp.loRis 执行Get===>http://kurtis.denis.splunk.com//hermelinda/dqsxcnvlqruggckifigrewgd/roseMarie?gwjwsixwvrcXld=yolande&id=331211'
                 matches = findAllDatesAndTimes(text, timeInfoTuplet)
 
 
@@ -32,7 +68,7 @@ import re
 import spl_common
 from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
-from DateParser import _validateDate, _validateTime
+from DateParser import _validateDate, _validateTime,_validateDateTime
 
 def pcre_subparse(vl="",l={}):
     pl = re.compile('\[\[(.*?)\]\]')
@@ -94,8 +130,11 @@ def pcre_parse(value="",transforms={}):
                     result = result.replace(j,j+str(k),k+1)
     return result
 
-def generate_sourcetype_re(sourcetype,transforms,props_conf):
+def generate_sourcetype_re(sourcetype,transforms,props_conf,debug=True):
     transforms_stanza = {}
+    if debug:
+        print '====sourcetype=====\n',sourcetype
+        print '====props_conf[sourcetype]=====\n',props_conf[sourcetype]
     for k in props_conf[sourcetype].keys():
         if re.search('(?:TRANSFORMS-*|REPORT-*|EXTRACT-*)',k):
             transforms_stanza[k]=transforms['default']
@@ -107,54 +146,60 @@ def generate_sourcetype_re(sourcetype,transforms,props_conf):
 
 def findAllDatesAndTimes(text, timeInfoTuplet):
     global today, _MIN_YEAR, _MAX_YEAR
-
-    #timeExpressions = timeInfoTuplet[0]
-    #dateExpressions = timeInfoTuplet[1]
+    timeExpressions = timeInfoTuplet[0]
+    dateExpressions = timeInfoTuplet[1]
     datetimeExpressions = timeInfoTuplet[2]
-    matches = getAllMatches(text, datetimeExpressions, _validateDate)
-    #matches = getAllMatches(text, dateExpressions, _validateDate)
-    #matches.extend(getAllMatches(text, timeExpressions, _validateTime))
+    matches = getMatches(text, timeExpressions, _validateTime)
+    if not matches:
+        print 'bad time,please check'
+        exit()
+    datematches = getMatches(text, dateExpressions, _validateDate)
+    if datematches:
+        matches.extend(datematches)
+    else:
+        print 'bad date,please check'
+        exit()
+    datetimematches = getAllMatches(text, datetimeExpressions, _validateDateTime,matches)
+    if datetimematches:
+        matches.extend(datetimematches)
     return matches
 
 
-def getAllMatches(text, expressions, validator):
+def getAllMatches(text, expressions, validator,matches):
     index = -1
-    matches = list()
-    mat_dict = {}
-    for expression in expressions.values():
+    extract_list = list()
+    for k,expression in expressions.items():
         index += 1
-        isvalid = True
         match = re.search(expression,text)
         if match:
-            print match.group(),'\n=======\n',match.groupdict()
-            print expression
-            val = {}
-            for k,v in match.groupdict().items():
-                if v != None:
-                    val[k] = v
-            mat_dict[match.group()] = expression
-    for k,v in mat_dict.items():
-        pass
-    return matches
-
-'''
-        for match in expression.finditer(text):
             values = match.groupdict()
-            for k,v in values.items():
-                if v != None:
-                    val[k] = v
-            isvalid = validator(val)
-        print  '=============\n',match.group(),'\n',val
-        if isvalid:
-            matches.append(val)
-'''
-                #print "MATCHED: ", match.group()
-                #matches.append(match.span())
-                # DOING ALL EXPRESSIONS FOR OPTIMIZATION DOES NOTHING.
-                # # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
-                # # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
-                # if index > 0: # optimize search
-                #     expressions.insert(0, expressions.pop(index))
+            timevalues = match.group()
+            extractions = validator(values)
+            if extractions and values.get('year') == matches[4]['year'] and values.get('hour')==matches[1]['hour']:
+                # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
+                # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
+                extract_list = [timevalues,values,{k:expression}]
+                #if index > 0:
+                #    expressions.insert(0, expressions.pop(index))
+                return extract_list
+
+def getMatches(text, expressions, validator):
+    index = -1
+    extract_list = list()
+    for k,expression in expressions.items():
+        index += 1
+        match = re.search(expression,text)
+        if match:
+            values = match.groupdict()
+            timevalues = match.group()
+            extractions = validator(values)
+            if extractions:
+                # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
+                # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
+                extract_list = [timevalues,values,{k:expression}]
+                #if index > 0:
+                #    expressions.insert(0, expressions.pop(index))
+                return extract_list
 
 
 def getTimeInfoTuplet(timestampconfilename):
@@ -188,81 +233,102 @@ def compilePatterns(formats):
     return compiledDict
 
 
-def multiline(sourcetype,transforms,props_conf,logfile):
-    sourcetype="catalina"
-    print '1.read file as follow:'
-    print 'props_conf'
+def multiline(sourcetype,transforms,props_conf,logfile,timestampconffilename,debug=True):
+    if debug:
+        print '1.read file as follow:'
+        print 'props_conf'
     log = open(logfile)
-    print logfile,'===>>>open'
+    if debug:
+        print logfile,'===>>>open'
 
 
-    print '\n\n\n2.读取props文件节的默认配置'
+        print '\n\n\n2.读取props文件节的默认配置'
     sourcetype_stanza_props = props_conf['default']
-    print sourcetype_stanza_props
+    if debug:
+        print sourcetype_stanza_props
 
 
-    print '\n\n\n3.获得sourcetype所对应的props文件节的配置覆盖默认的配置'
+        print '\n\n\n3.获得sourcetype所对应的props文件节的配置覆盖默认的配置'
     for (k,v) in props_conf[sourcetype].items():
         sourcetype_stanza_props[k] = v
-    print props_conf[sourcetype],"\n===覆盖>>>result===>>>\n",sourcetype_stanza_props
+    if debug:
+        print props_conf[sourcetype],"\n===覆盖>>>result===>>>\n",sourcetype_stanza_props
     
-    print '\n\n\n3.1获得sourcetype所对应transforms.conf转换后 的正则'
-    sourcetype_re=generate_sourcetype_re(sourcetype,transforms,props_conf)
-    print '========sourcetype_re=======\n',sourcetype_re 
+        print '\n\n\n3.1获得sourcetype所对应transforms.conf转换后 的正则'
+    sourcetype_re=generate_sourcetype_re(sourcetype,transforms,props_conf,debug)
+    if debug:
+        print '========sourcetype_re=======\n',sourcetype_re 
 
-    print '\n\n\n4.当SHOULD_LINEMERGE为true时，说明需要进行多行构建，否则不需要'
+        print '\n\n\n4.当SHOULD_LINEMERGE为true时，说明需要进行多行构建，否则不需要'
     event={"sourcetype":sourcetype,"_raw":""}
-    multiline_re = r'(\d+:\d+:\d)'
-    print '默认的时间戳正则:',multiline_re
-    print 'SHOULD_LINEMERGE:',sourcetype_stanza_props['SHOULD_LINEMERGE']
+    f = open(logfile)
+    text = f.readline()
+    f.close()
+    timeInfoTuplet = getTimeInfoTuplet(timestampconffilename)
+    matches = findAllDatesAndTimes(text, timeInfoTuplet)
+    multiline_re = matches[8].values()[0]
+    if debug:
+        print '默认的时间戳正则:',multiline_re
+        print 'SHOULD_LINEMERGE:',sourcetype_stanza_props['SHOULD_LINEMERGE']
 
     if strtobool(sourcetype_stanza_props['SHOULD_LINEMERGE']):
-        print '判断多行构建的正则，如果存在BREAK_ONLY_BEFORE，就用它，没有就默认用BREAK_ONLY_BEFORE_DATE'
-        print 'BREAK_ONLY_BEFORE:',sourcetype_stanza_props['BREAK_ONLY_BEFORE'],':在此冒号之前为值'
+        if debug:
+            print '判断多行构建的正则，如果存在BREAK_ONLY_BEFORE，就用它，没有就默认用BREAK_ONLY_BEFORE_DATE'
+            print 'BREAK_ONLY_BEFORE:',sourcetype_stanza_props['BREAK_ONLY_BEFORE'],':在此冒号之前为值'
 
         if sourcetype_stanza_props['BREAK_ONLY_BEFORE']:
-            print multiline_re,'===>>>',sourcetype_stanza_props['BREAK_ONLY_BEFORE']
+            if debug:
+                print multiline_re,'===>>>',sourcetype_stanza_props['BREAK_ONLY_BEFORE']
             multiline_re = sourcetype_stanza_props['BREAK_ONLY_BEFORE']
 
-        print '当LINE_BREAKER不存在时为默认的\\r\\n'
-        print 'sourcetype_stanza_props.has_key("LINE_BREAKER"):',sourcetype_stanza_props.has_key("LINE_BREAKER")
+        if debug:
+            print '当LINE_BREAKER不存在时为默认的\\r\\n'
+            print 'sourcetype_stanza_props.has_key("LINE_BREAKER"):',sourcetype_stanza_props.has_key("LINE_BREAKER")
 
 
         if not sourcetype_stanza_props.has_key("LINE_BREAKER"):
             linecount = 0
             count = 0
-            print '单行读取进行多行event构建'
+            if debug:
+                print '单行读取进行多行event构建'
 
             for line in log:
                 if re.search(multiline_re,line):
                     if linecount >= 1:
-                        print '===============事件结束==============='
+                        if debug:
+                            print '===============事件结束==============='
                         event['linecount'] = linecount
-                        #print event
+                        print event
                         event={"sourcetype":sourcetype,"_raw":""}
                     linecount = 1
                     count = count + 1
                     event['_raw']=str(count)+'\t'+line
-                    print '\n\n\n===============事件开始===============\n',event['_raw']
+                    if debug:
+                        print '\n\n\n===============事件开始===============\n',event['_raw']
 
                 else:
                     linecount = linecount + 1
                     count = count + 1
                     line = str(count)+'\t'+line
                     event['_raw']=event['_raw']+line
-                    print "===========多行合并 " + str(linecount-1) +" 次===========\n"
-                    print event['_raw']
-            print '===============事件结束==============='
+                    if debug:
+                        print "===========多行合并 " + str(linecount-1) +" 次===========\n"
+                        print event['_raw']
+            if debug:
+                print '===============事件结束==============='
 
     else:
-        print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
+        if debug:
+            print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
         for line in log:
             event={"linecount":1,"sourcetype":sourcetype,"_raw":line}
             print event
-        print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
+        if debug:
+            print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
 
     log.close()
-    print logfile,'===>>>close'
+    if debug:
+        print logfile,'===>>>close'
 
 
 def list_all_source_type(source_types, props):
@@ -445,13 +511,14 @@ if __name__ == '__main__':
         source_type = sys.argv[2]
         log_file = sys.argv[3]
         extract(source_types, source_type, props, transforms, log_file)
-        """
-        select_method = raw_input("please select method(1.extract,2.multiline): ")
-        if select_method == '1' or select_method == 'extract':
-            extract(source_types, source_type, props, transforms, log_file)
-        elif select_method == '2' or select_method == 'multiline':
-            multiline(source_type,transforms,props,log_file)
+
+    if len(sys.argv) >= 5:
+        source_type = sys.argv[2]
+        log_file = sys.argv[3]
+        timestampconffilename = sys.argv[4]
+        if sys.argv[5]:
+            debug = strtobool(sys.argv[5])
         else:
-            print 'please input: 1 | extract | 2 | multiline'
-        """
+            debug = True
+        multiline(source_type,transforms,props,log_file,timestampconffilename,debug)
 # end of file
