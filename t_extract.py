@@ -134,7 +134,7 @@ def getAllMatches(text, expressions, validator):
                     val[k] = v
             mat_dict[match.group()] = expression
     for k,v in mat_dict.items():
-        
+        pass
     return matches
 
 '''
@@ -188,13 +188,8 @@ def compilePatterns(formats):
     return compiledDict
 
 
-
-<<<<<<< HEAD
 def multiline(sourcetype,transforms,props_conf,logfile):
-=======
-def multiline(sourcetype,props_conf,logfile):
     sourcetype="catalina"
->>>>>>> refs/remotes/origin/master
     print '1.read file as follow:'
     print 'props_conf'
     log = open(logfile)
