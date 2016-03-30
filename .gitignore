@@ -26,5 +26,5 @@ sentry-package.json
 /env
 /node_modules/
 /docs/_build
-_t.lua
+^_t.lua
 /test_cli/

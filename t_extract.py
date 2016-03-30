@@ -353,6 +353,44 @@ def list_all_source_type(source_types, props):
 
 stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
+
+def build_normal_regex(regex_expr, transforms):
+    """
+        convert to normal regex via transform rules
+    """
+    rv = regex_expr
+    convert_map = {}
+    for match in stanza_re.finditer(regex_expr):
+        #print match, dir(match)
+        expr = match.group(1)
+        toks = expr.split(':')
+        expr_name = '_'
+        if len(toks) == 1:
+            stanza_name = toks[0]
+        if len(toks) == 2:
+            stanza_name, expr_name = toks
+        if len(toks) > 2:
+            print 'unknown stanze format %s'% expr
+            exit(-1)
+
+        if True:
+            transform_define = transforms[stanza_name]
+            regex_expr = transform_define['REGEX']
+            regex_normal_expr = build_normal_regex(regex_expr, transforms)
+            # check is named or not
+            if expr_name == '_':
+                convert_map[expr] = "(?:%s)" % regex_normal_expr
+            else:
+                convert_map[expr] = "(?<%s>%s)" % (expr_name, regex_normal_expr)
+
+    # do replace
+    for k, v in convert_map.items():
+        #print rv, '....>'
+        rv = rv.replace("[[%s]]" % k, v)
+        #print rv
+    #print regex_expr, '0-0000'
+    return rv
+
 def processing_transform_stanza(transforms, transform_stanza, prefix=''):
     # see the description
     # http://docs.splunk.com/Documentation/Splunk/latest/Admin/Transformsconf
@@ -364,6 +402,7 @@ def processing_transform_stanza(transforms, transform_stanza, prefix=''):
     regex_expr = transform_define['REGEX']
     #regex_expr = regex_expr.strip()
     print prefix, transform_stanza, ":", regex_expr
+    print prefix, transform_stanza, "=>", build_normal_regex(regex_expr, transforms)
     # in regex, might have some macro.
     # use regex to strip them out
     stanza_set = set()
