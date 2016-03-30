@@ -8,6 +8,7 @@ end
 -- build series transform | report | extract
 -- report
 {% for step_name in processor.step_reports %}
+local event_report_{{ processor.get_normal_name(step_name) }}_re = rex_pcre.new("{{ processor.get_full_regex(step_name, True) }}")
 function event_report_{{ processor.get_normal_name(step_name) }}(new_event)
 
 end
@@ -65,7 +66,7 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
     -- processing the events
     -- do regex
 
-    -- print(event_lines:sub(b, e))
+    print(event_lines:sub(b, e))
 end
 
 function DefaultLineBreakerFeed:feed(data)

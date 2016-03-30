@@ -78,6 +78,8 @@ from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
 from DateParser import _validateDate, _validateTime,_validateDateTime
 
+# before removal
+"""
 def pcre_subparse(vl="",l={}):
     pl = re.compile('\[\[(.*?)\]\]')
     ml = pl.findall(vl)
@@ -137,6 +139,7 @@ def pcre_parse(value="",transforms={}):
                 if len(pp.findall(result)) != len(set(pp.findall(result))):
                     result = result.replace(j,j+str(k),k+1)
     return result
+"""
 
 def generate_sourcetype_re(sourcetype,transforms,props_conf,debug=True):
     transforms_stanza = {}
@@ -240,7 +243,8 @@ def compilePatterns(formats):
         #print compiledDict[k],'\n=============='
     return compiledDict
 
-
+# before removal
+"""
 def multiline(sourcetype,transforms,props_conf,logfile,timestampconffilename,debug=True):
     if debug:
         print '1.read file as follow:'
@@ -337,7 +341,7 @@ def multiline(sourcetype,transforms,props_conf,logfile,timestampconffilename,deb
     log.close()
     if debug:
         print logfile,'===>>>close'
-
+"""
 
 def list_all_source_type(source_types, props):
     _types = set()
@@ -354,7 +358,7 @@ def list_all_source_type(source_types, props):
 stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
 
-def build_normal_regex(regex_expr, transforms):
+def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
     """
         convert to normal regex via transform rules
     """
@@ -376,12 +380,22 @@ def build_normal_regex(regex_expr, transforms):
         if True:
             transform_define = transforms[stanza_name]
             regex_expr = transform_define['REGEX']
-            regex_normal_expr = build_normal_regex(regex_expr, transforms)
+            if expr_name == '_':
+                regex_normal_expr = build_normal_regex(regex_expr, transforms, name_group_prefix)
+            else:
+                regex_normal_expr = build_normal_regex(regex_expr, transforms, name_group_prefix + "_" + expr_name+"_")
+
+            # add name_group_prefix if there is one
+            regex_normal_expr = re.sub(r'\?\<(\w+)\>', r'?<%s\1>' % name_group_prefix, regex_normal_expr)
             # check is named or not
             if expr_name == '_':
                 convert_map[expr] = "(?:%s)" % regex_normal_expr
             else:
-                convert_map[expr] = "(?<%s>%s)" % (expr_name, regex_normal_expr)
+                # if there is a ?<> should do a replacement
+                if regex_normal_expr.find('?<>') != -1:
+                    convert_map[expr] = regex_normal_expr.replace('?<>', "?<%s>" % expr_name)
+                else:
+                    convert_map[expr] = "(?<%s>%s)" % (expr_name, regex_normal_expr)
 
     # do replace
     for k, v in convert_map.items():
@@ -476,10 +490,6 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
     pass
 
 
-def build_regex_expr(meta_re_expr, props, transforms):
-    pass
-
-
 class DataProcessor(object):
     """
         - 加载数据的处理流程
@@ -509,12 +519,19 @@ class DataProcessor(object):
                 new_name.append('_')
         return ''.join(new_name)
 
-    def get_full_regex(self, step_name):
+    def get_full_regex(self, step_name, escape=False):
         """
             取得当前表达式的完整形式， 以及包括的 named_group
         """
-
-        pass
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        if escape:
+            #return rv
+            return rv.replace("\\", "\\\\").replace('\"', '\\"')
+            #return re.escape(rv)
+        else:
+            return rv
 
 
 def extract(source_types, source_type, props, transforms, log_file):
@@ -654,5 +671,5 @@ if __name__ == '__main__':
             debug = strtobool(sys.argv[5])
         else:
             debug = True
-        multiline(source_type,transforms,props,log_file,timestampconffilename,debug)
+        #multiline(source_type,transforms,props,log_file,timestampconffilename,debug)
 # end of file
