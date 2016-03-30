@@ -381,12 +381,18 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
             transform_define = transforms[stanza_name]
             regex_expr = transform_define['REGEX']
             if expr_name == '_':
-                regex_normal_expr = build_normal_regex(regex_expr, transforms, name_group_prefix)
+                regex_prefix = name_group_prefix
             else:
-                regex_normal_expr = build_normal_regex(regex_expr, transforms, name_group_prefix + "_" + expr_name+"_")
+                if name_group_prefix:
+                    regex_prefix = name_group_prefix + "_" + expr_name + "_"
+                else:
+                    regex_prefix = expr_name + "_"
+
+            regex_normal_expr = build_normal_regex(regex_expr, transforms, regex_prefix)
 
             # add name_group_prefix if there is one
-            regex_normal_expr = re.sub(r'\?\<(\w+)\>', r'?<%s\1>' % name_group_prefix, regex_normal_expr)
+            # print '0000', name_group_prefix, expr_name
+            regex_normal_expr = re.sub(r'\?\<(\w+)\>', r'?<%s\1>' % regex_prefix, regex_normal_expr)
             # check is named or not
             if expr_name == '_':
                 convert_map[expr] = "(?:%s)" % regex_normal_expr
