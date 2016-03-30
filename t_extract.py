@@ -11,12 +11,18 @@
     3  给定 source_type　和　具体的日志文件，　会有两个方法进行选择，1 表示选择extract方法 ：显示解析后的结果，2 表示选择multiline方法：多行event进行合并,并显示合并的过程和结果
         eg.
             python t_extract.py etc access_combined ../LogSample/apache/access_log
-            # 测试 custom line-breaker
+            # 测试 custom line-breaker & report-pipe
             python t_extract.py etc wmi ./samples/splunk-wmi.log
+            # 测试 EXTRACT- REPORT-
+            python t_extract.py etc ActiveDirectory ./samples/splunk-ad.log
+            # 测试 TRANSFORMS via syslog
             单行:python t_extract.py etc access_combined samples/apache.log
             多行:python t_extract.py etc catalina samples/ANON-catalina.log
 
-    4 获得时间戳正则
+    4  配置文件的 override
+        可以使用 类似 source::...a... 的方式，重载系统的默认配置， 在实践中, 应该有针对性的生成额外的处理函数
+
+    5 获得时间戳正则
         eg.
                 python      #进入命令行
                 from t_extract import *
@@ -335,7 +341,19 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
             transform_stanza_list = v.split(',')
             for transform_stanza in transform_stanza_list:
                 processing_transform_stanza(transforms, transform_stanza)
-        # TODO: deal TRANSFORMS-
+
+        if k.startswith('TRANSFORMS-'):
+            # to report -> do somthing in transform
+            # TRANSFORMS-<class> = <transform_stanza_name>, <transform_stanza_name2>,..
+            # source -> transform_stanza_name -> transform_stanza_name2 -> result
+            transform_stanza_list = v.split(',')
+            transform_stanza_list.insert(0, '_raw')
+            transform_stanza_list.append('result')
+            print 'transform:\t', ' -> '.join(transform_stanza_list)
+            transform_stanza_list = v.split(',')
+            for transform_stanza in transform_stanza_list:
+                processing_transform_stanza(transforms, transform_stanza)
+
         if k.startswith('EXTRACT-'):
             # local extract
             # eg. EXTRACT-<class> = [<regex>|<regex> in <src_field>]
@@ -349,6 +367,47 @@ def show_source_extract_plan(source_types, source_type, props, transforms):
             print 'value:\t', reg_expr, '->', reg_field
         #print k, v
     pass
+
+
+def build_regex_expr(meta_re_expr, props, transforms):
+    pass
+
+
+class DataProcessor(object):
+    """
+        - 加载数据的处理流程
+    """
+    def __init__(self, props, transforms):
+        self._props = props
+        self._transforms = transforms
+        self.step_reports = []
+        self.step_transform = []
+        self.step_extract = []
+
+    def add_report(self, step_name):
+        self.step_reports.append(step_name)
+
+    def add_transform(self, step_name):
+        self.step_transform.append(step_name)
+
+    def add_extract(self, step_name):
+        self.step_extract.append(step_name)
+
+    def get_normal_name(self, name):
+        new_name = []
+        for c in name:
+            if ord(c) in range(ord('a'), ord('z')) or c in range(ord('A'), ord('Z')) or c in range(ord('0'), ord('9')):
+                new_name.append(c)
+            else:
+                new_name.append('_')
+        return ''.join(new_name)
+
+    def get_full_regex(self, step_name):
+        """
+            取得当前表达式的完整形式， 以及包括的 named_group
+        """
+
+        pass
 
 
 def extract(source_types, source_type, props, transforms, log_file):
@@ -392,14 +451,48 @@ def extract(source_types, source_type, props, transforms, log_file):
         'linebreaker_regex': line_breaker,
         'multiline': line_merge and True
     }
-    #print options
-    lua_code_generated = template.render(max_events=max_events, options=options)
+    # load processor
+    processor = DataProcessor(props, transforms)
+    for k, v in props[source_type].items():
+        if k.startswith('REPORT-'):
+            # to report -> do somthing in transform
+            # REPORT-<class> = <transform_stanza_name>, <transform_stanza_name2>,..
+            # source -> transform_stanza_name -> transform_stanza_name2 -> result
+            transform_stanza_list = v.split(',')
+            for transform_stanza in transform_stanza_list:
+                processor.add_report(transform_stanza)
+                #processing_transform_stanza(transforms, transform_stanza)
+
+        if k.startswith('TRANSFORMS-'):
+            # to report -> do somthing in transform
+            # TRANSFORMS-<class> = <transform_stanza_name>, <transform_stanza_name2>,..
+            # source -> transform_stanza_name -> transform_stanza_name2 -> result
+            transform_stanza_list = v.split(',')
+            for transform_stanza in transform_stanza_list:
+                processor.add_transform(transform_stanza)
+            #    processing_transform_stanza(transforms, transform_stanza)
+
+        if k.startswith('EXTRACT-'):
+            # local extract
+            # eg. EXTRACT-<class> = [<regex>|<regex> in <src_field>]
+            rules = v.split(' in ')
+            if rules > 1:
+                reg_expr = rules[0]
+                reg_field = rules[1]
+            else:
+                reg_expr = rules[0]
+                reg_field = '_raw'
+            # TODO: deal -extract
+            print 'value:\t', reg_expr, '->', reg_field
+
+    # do execute
+    lua_code_generated = template.render(processor=processor, max_events=max_events, options=options)
     print lua_code_generated
     # write to ...
     fname = "_t.lua"
     with open(fname, 'w') as fh:
         fh.write(lua_code_generated)
-    # do execute
+
     try:
         os.system("luajit %s %s" % (fname, log_file))
     finally:

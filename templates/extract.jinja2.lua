@@ -5,6 +5,23 @@ function string.ends(String,End)
    return End=='' or string.sub(String,-string.len(End))==End
 end
 
+-- build series transform | report | extract
+-- report
+{% for step_name in processor.step_reports %}
+function event_report_{{ processor.get_normal_name(step_name) }}(new_event)
+
+end
+
+{% endfor %}
+-- transform
+{% for step_name in processor.step_transform %}
+-- {{ step_name }}
+{% endfor %}
+-- extract
+{% for step_name in processor.step_extract %}
+-- {{ step_name }}
+{% endfor %}
+
 -- TODO: 1 create a event emit, on_event?
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
