@@ -72,7 +72,7 @@
 """
 import os
 import sys
-import re
+import re,time
 import spl_common
 from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
@@ -357,6 +357,30 @@ def list_all_source_type(source_types, props):
 
 stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
+def transforms_parse(transforms={}):
+    l={}
+    for (k,d) in transforms.items():
+        if type(d)==dict and d.has_key('REGEX'):
+            pa=re.compile('\?\<(.*?)\>')
+            v = d['REGEX']
+            val = v
+            li = pa.findall(v)
+            if len(li)>0:
+                for i in li:
+                    if i == "":
+                        val = v
+                    v=val
+                if not v.startswith('(?') or not v.endswith(')'):
+                    l[k]='(?:'+v.replace('/','\/')+')'
+                else:
+                    l[k]=v.replace('/','\/')
+            else:
+                if not v.startswith('(?') or not v.endswith(')'):
+                    l[k]='(?:'+d['REGEX'].replace('/','\/')+')'
+                else:
+                    l[k]=d['REGEX'].replace('/','\/')
+    return l
+
 
 def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
     """
@@ -378,8 +402,8 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
             exit(-1)
 
         if True:
-            transform_define = transforms[stanza_name]
-            regex_expr = transform_define['REGEX']
+            transform_define = transforms_parse(transforms)
+            regex_expr = transform_define[stanza_name]
             if expr_name == '_':
                 regex_prefix = name_group_prefix
             else:
@@ -624,7 +648,13 @@ def extract(source_types, source_type, props, transforms, log_file):
         fh.write(lua_code_generated)
 
     try:
+        #os.system("luajit %s %s" % (fname, log_file))
+        os.system("wc -l %s" % (log_file))
+        timebegin = time.time()
         os.system("luajit %s %s" % (fname, log_file))
+        timeend = time.time()
+        times = timeend - timebegin
+        print 'times:',times
     finally:
         #os.remove(fname)
         pass

@@ -1,8 +1,44 @@
-local rex_pcre = require "rex_pcre"
+--49444250/164=301489.3292682927
+--49444250/264.455225945=186966.4319293246
 
+local rex_pcre = require "rex_pcre"
+local re = '(?:^(?<clientip>(?:\\S+))\\s++(?<ident>(?:\\S+))\\s++(?<user>(?:\\S+))\\s++(?<req_time>(?:\\[(?:[^\\]]*+)\\]))\\s++(?:"\\s*+(?<method>(?:[^\\s"]++))?(?:\\s++(?<uri>(?<uri_>(?<domain0>\\w++:\\/\\/[^\\/\\s"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\"|[^\\s\\?\\/"])++)\\/++)?(?:(?:\\\\"|[^\\s\\?\\/"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?)(?:\\s++(?<version>(?:[^\\s"]++)))*)?\\s*+")\\s++(?<status>(?:\\S+))\\s++(?<bytes>(?:\\S+))(?:\\s++"(?<referer>(?<referer_>(?<domain>\\w++:\\/\\/[^\\/\\s"]++))?+[^"]*+)"(?:\\s++(?<useragent>(?:"(?:[^"]*+)"))(?:\\s++(?<cookie>(?:"(?:[^"]*+)")))?+)?+)?(?<other>(?:.*)))'
+local name = 'clientip,ident,user,req_time,method,uri,uri_,domain0,uri_path,root,file,uri_query,version,status,bytes,referer,referer_,domain,useragent,cookie,other'
+local re_new = rex_pcre.new(re)
+local names = {}
+for w in string.gmatch(name,"([^',']+)") do
+    table.insert(names,w)
+end
+
+--local countline = 0
 -- print( rex_pcre.new("[0-9]+"):exec("1234") )
 function string.ends(String,End)
    return End=='' or string.sub(String,-string.len(End))==End
+end
+
+function extract_event(line )
+    namegroup = {}
+    count = 0
+    group={re_new:match(line)}
+    for w in string.gmatch(name,"([^',']+)") do
+        count = count+1
+        namegroup[w]=group[count]
+    end
+    return namegroup
+end
+
+function t_extract_event(group)
+    namegroup = {}
+    for k,v in pairs(names) do
+        namegroup[v]=group[k]
+    end
+    return namegroup
+end
+
+function print_table( t )
+    for k,v in pairs(t) do
+        print(k,v)
+    end
 end
 
 -- build series transform | report | extract
@@ -62,11 +98,17 @@ function DefaultLineBreakerFeed:new(o)
     return o
 end
 
+ 
 function DefaultLineBreakerFeed:new_event(event_lines, b, e)
     -- processing the events
     -- do regex
-
-    print(event_lines:sub(b, e))
+    --print('========')
+    --print(event_lines:sub(b, e))
+    --namegroup = extract_event(event_lines:sub(b, e))
+    t = {re_new:match(event_lines:sub(b, e))}
+    --namegroup = t_extract_event(t)
+    --print_table(namegroup)
+    --countline = countline + 1
 end
 
 function DefaultLineBreakerFeed:feed(data)
@@ -134,7 +176,7 @@ end
 
 function CustomLineBreakerFeed:new_event(event_lines)
     -- processing the events
-    print (event_lines)
+    
     print ("=====")
 end
 
@@ -166,6 +208,7 @@ end
 local feeder = CustomLineBreakerFeed:new()
 {% endif %}
 
+
 local data_file = arg[1]
 -- read buffer from stdin
 local buffer_size = 2^16    -- make a 64k buffer. use this buffer make reading faster.
@@ -180,4 +223,5 @@ while true do
     feeder:feed(block)
 end
 f:close()
+--print('countline:',countline)
 -- end of file
