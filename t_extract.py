@@ -78,81 +78,7 @@ from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
 from DateParser import _validateDate, _validateTime,_validateDateTime
 
-# before removal
-"""
-def pcre_subparse(vl="",l={}):
-    pl = re.compile('\[\[(.*?)\]\]')
-    ml = pl.findall(vl)
-    res = vl
-    if len(ml)>0:
-        for i in ml:
-            sl = i.split(":")
-            if len(sl)>1:
-                res = vl.replace('[['+i+']]','(?<'+sl[1]+'>'+l[sl[0]]+')')
-            else:
-                res = vl.replace('[['+i+']]',l[sl[0]])
-            vl = res
-    return res
 
-def pcre_parse(value="",transforms={}):
-    l={}
-    for (k,d) in transforms.items():
-        if type(d)==dict and d.has_key('REGEX'):
-            pa=re.compile('\?\<(.*?)\>')
-            v = d['REGEX']
-            val = v
-            li = pa.findall(v)
-            if len(li)>0:
-                for i in li:
-                    if i == "":
-                        val = v.replace('?<>','?:')
-                    v=val
-                if not v.startswith('(?') or not v.endswith(')'):
-                    l[k]='(?:'+v.replace('/','\/')+')'
-                else:
-                    l[k]=v.replace('/','\/')
-            else:
-                if not v.startswith('(?') or not v.endswith(')'):
-                    l[k]='(?:'+d['REGEX'].replace('/','\/')+')'
-                else:
-                    l[k]=d['REGEX'].replace('/','\/')
-    p = re.compile('\[\[(.*?)\]\]')
-    m = p.findall(value)
-    result = value
-    if len(m)>0:
-        result = pcre_subparse(result,l)
-        while len(p.findall(result))>0:
-            result = pcre_subparse(result,l)
-    else:
-        result = pcre_subparse(l[result],l)
-        while len(p.findall(result)) > 0:
-            result = pcre_subparse(result,l)
-    pp = re.compile('\?\<(.*?)\>')
-    mm = pp.findall(result)
-    for j in mm:
-        count = 0
-        for i in mm:
-            if j == i:
-                count = count + 1
-        if count > 1:
-            for k in range(count):
-                if len(pp.findall(result)) != len(set(pp.findall(result))):
-                    result = result.replace(j,j+str(k),k+1)
-    return result
-"""
-
-def generate_sourcetype_re(sourcetype,transforms,props_conf,debug=True):
-    transforms_stanza = {}
-    if debug:
-        print '====sourcetype=====\n',sourcetype
-        print '====props_conf[sourcetype]=====\n',props_conf[sourcetype]
-    for k in props_conf[sourcetype].keys():
-        if re.search('(?:TRANSFORMS-*|REPORT-*|EXTRACT-*)',k):
-            transforms_stanza[k]=transforms['default']
-            for (ke,va) in transforms[props_conf[sourcetype][k]].items():
-                transforms_stanza[k][ke] = va
-            transforms_stanza[k]['REGEX']=pcre_parse(props_conf[sourcetype][k],transforms)
-    return transforms_stanza
 
 
 def findAllDatesAndTimes(text, timeInfoTuplet):
@@ -187,11 +113,7 @@ def getAllMatches(text, expressions, validator,matches):
             timevalues = match.group()
             extractions = validator(values)
             if extractions and values.get('year') == matches[4]['year'] and values.get('hour')==matches[1]['hour']:
-                # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
-                # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
                 extract_list = [timevalues,values,{k:expression}]
-                #if index > 0:
-                #    expressions.insert(0, expressions.pop(index))
                 return extract_list
 
 def getMatches(text, expressions, validator):
@@ -205,11 +127,7 @@ def getMatches(text, expressions, validator):
             timevalues = match.group()
             extractions = validator(values)
             if extractions:
-                # DC: WE HAVE A VALID MATCH, AND IT WASN'T THE FIRST EXPRESSION,
-                # MAKE THIS PATTERN THE FIRST ONE TRIED FROM NOW ON
                 extract_list = [timevalues,values,{k:expression}]
-                #if index > 0:
-                #    expressions.insert(0, expressions.pop(index))
                 return extract_list
 
 
@@ -236,112 +154,9 @@ def readText(filename):
 def compilePatterns(formats):
     compiledDict = {}
     for (k,format) in formats.items():
-        #print '==========key=========',k
-        #print str(format)
-        #compiledDict[k] = (re.compile(format, re.I))
         compiledDict[k] = format
-        #print compiledDict[k],'\n=============='
     return compiledDict
 
-# before removal
-"""
-def multiline(sourcetype,transforms,props_conf,logfile,timestampconffilename,debug=True):
-    if debug:
-        print '1.read file as follow:'
-        print 'props_conf'
-    log = open(logfile)
-    if debug:
-        print logfile,'===>>>open'
-
-
-        print '\n\n\n2.读取props文件节的默认配置'
-    sourcetype_stanza_props = props_conf['default']
-    if debug:
-        print sourcetype_stanza_props
-
-
-        print '\n\n\n3.获得sourcetype所对应的props文件节的配置覆盖默认的配置'
-    for (k,v) in props_conf[sourcetype].items():
-        sourcetype_stanza_props[k] = v
-    if debug:
-        print props_conf[sourcetype],"\n===覆盖>>>result===>>>\n",sourcetype_stanza_props
-    
-        print '\n\n\n3.1获得sourcetype所对应transforms.conf转换后 的正则'
-    sourcetype_re=generate_sourcetype_re(sourcetype,transforms,props_conf,debug)
-    if debug:
-        print '========sourcetype_re=======\n',sourcetype_re 
-
-        print '\n\n\n4.当SHOULD_LINEMERGE为true时，说明需要进行多行构建，否则不需要'
-    event={"sourcetype":sourcetype,"_raw":""}
-    f = open(logfile)
-    text = f.readline()
-    f.close()
-    timeInfoTuplet = getTimeInfoTuplet(timestampconffilename)
-    matches = findAllDatesAndTimes(text, timeInfoTuplet)
-    multiline_re = matches[8].values()[0]
-    if debug:
-        print '默认的时间戳正则:',multiline_re
-        print 'SHOULD_LINEMERGE:',sourcetype_stanza_props['SHOULD_LINEMERGE']
-
-    if strtobool(sourcetype_stanza_props['SHOULD_LINEMERGE']):
-        if debug:
-            print '判断多行构建的正则，如果存在BREAK_ONLY_BEFORE，就用它，没有就默认用BREAK_ONLY_BEFORE_DATE'
-            print 'BREAK_ONLY_BEFORE:',sourcetype_stanza_props['BREAK_ONLY_BEFORE'],':在此冒号之前为值'
-
-        if sourcetype_stanza_props['BREAK_ONLY_BEFORE']:
-            if debug:
-                print multiline_re,'===>>>',sourcetype_stanza_props['BREAK_ONLY_BEFORE']
-            multiline_re = sourcetype_stanza_props['BREAK_ONLY_BEFORE']
-
-        if debug:
-            print '当LINE_BREAKER不存在时为默认的\\r\\n'
-            print 'sourcetype_stanza_props.has_key("LINE_BREAKER"):',sourcetype_stanza_props.has_key("LINE_BREAKER")
-
-
-        if not sourcetype_stanza_props.has_key("LINE_BREAKER"):
-            linecount = 0
-            count = 0
-            if debug:
-                print '单行读取进行多行event构建'
-
-            for line in log:
-                if re.search(multiline_re,line):
-                    if linecount >= 1:
-                        if debug:
-                            print '===============事件结束==============='
-                        event['linecount'] = linecount
-                        print event
-                        event={"sourcetype":sourcetype,"_raw":""}
-                    linecount = 1
-                    count = count + 1
-                    event['_raw']=str(count)+'\t'+line
-                    if debug:
-                        print '\n\n\n===============事件开始===============\n',event['_raw']
-
-                else:
-                    linecount = linecount + 1
-                    count = count + 1
-                    line = str(count)+'\t'+line
-                    event['_raw']=event['_raw']+line
-                    if debug:
-                        print "===========多行合并 " + str(linecount-1) +" 次===========\n"
-                        print event['_raw']
-            if debug:
-                print '===============事件结束==============='
-
-    else:
-        if debug:
-            print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
-        for line in log:
-            event={"linecount":1,"sourcetype":sourcetype,"_raw":line}
-            print event
-        if debug:
-            print "不需要多行构建，一个LINE_BREAKER分割即为一个event"
-
-    log.close()
-    if debug:
-        print logfile,'===>>>close'
-"""
 
 def list_all_source_type(source_types, props):
     _types = set()
@@ -355,31 +170,8 @@ def list_all_source_type(source_types, props):
         print sname
 
 
-stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
-def transforms_parse(transforms={}):
-    l={}
-    for (k,d) in transforms.items():
-        if type(d)==dict and d.has_key('REGEX'):
-            pa=re.compile('\?\<(.*?)\>')
-            v = d['REGEX']
-            val = v
-            li = pa.findall(v)
-            if len(li)>0:
-                for i in li:
-                    if i == "":
-                        val = v
-                    v=val
-                if not v.startswith('(?') or not v.endswith(')'):
-                    l[k]='(?:'+v.replace('/','\/')+')'
-                else:
-                    l[k]=v.replace('/','\/')
-            else:
-                if not v.startswith('(?') or not v.endswith(')'):
-                    l[k]='(?:'+d['REGEX'].replace('/','\/')+')'
-                else:
-                    l[k]=d['REGEX'].replace('/','\/')
-    return l
+stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
 
 def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
@@ -402,8 +194,8 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
             exit(-1)
 
         if True:
-            transform_define = transforms_parse(transforms)
-            regex_expr = transform_define[stanza_name]
+            transform_define = transforms[stanza_name]
+            regex_expr = transform_define['REGEX'].replace('/','\/')
             if expr_name == '_':
                 regex_prefix = name_group_prefix
             else:
