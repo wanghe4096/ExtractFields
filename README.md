@@ -14,17 +14,9 @@ pip install -r requirements.txt
     CFLAGS=-fPIC make
     sudo make install
 
-安装 lua 的依赖关系
+安装 pcre库
 >
-    wget -c http://keplerproject.github.io/luarocks/releases/luarocks-2.3.0.tar.gz
-    tar xzfv luarocks-2.3.0.tar.gz
-    ./configure
-    make
-    sudo make install
-
-此处配置时，需要指明 luajit 的 include 位置
-
-luarocks install lrexlib-PCRE
+    sudo dnf/yum/apt-get install pcre-8.38-7
 
 
 ## Test

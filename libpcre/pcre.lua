@@ -11,8 +11,13 @@ module(...)
 
 L = ffi.load('pcre')
 
-reg = '(?:^(?<clientip>(?:\\S+))\\s++(?<ident>(?:\\S+))\\s++(?<user>(?:\\S+))\\s++(?<req_time>(?:\\[(?:[^\\]]*+)\\]))\\s++(?:"\\s*+(?<method>(?:[^\\s"]++))?(?:\\s++(?<uri>(?<uri_>(?<domain0>\\w++:\\/\\/[^\\/\\s"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\"|[^\\s\\?\\/"])++)\\/++)?(?:(?:\\\\"|[^\\s\\?\\/"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?)(?:\\s++(?<version>(?:[^\\s"]++)))*)?\\s*+")\\s++(?<status>(?:\\S+))\\s++(?<bytes>(?:\\S+))(?:\\s++"(?<referer>(?<referer_>(?<domain>\\w++:\\/\\/[^\\/\\s"]++))?+[^"]*+)"(?:\\s++(?<useragent>(?:"(?:[^"]*+)"))(?:\\s++(?<cookie>(?:"(?:[^"]*+)")))?+)?+)?(?<other>(?:.*)))'
+reg = '^(?<clientip>\\S+)\\s++(?<ident>\\S+)\\s++(?<user>\\S+)\\s++\\[(?<req_time>[^\\]]*+)\\]\\s++(?:"\\s*+(?<method>[^\\s"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\"|[^\\s\\?\\/"])++)\\/++)?(?:(?:\\"|[^\\s\\?\\/"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s"]++))*)?\\s*+")\\s++(?<status>\\S+)\\s++(?<bytes>\\S+)(?:\\s++"(?<referer>(?<referer_>(?<referer__domain>\\w++:\\/\\/[^\\/\\s"]++))?+[^"]*+)"(?:\\s++"(?<useragent>[^"]*+)"(?:\\s++"(?<cookie>[^"]*+)")?+)?+)?(?<other>.*)'
+
 text = '113.96.151.228 - - [23/Mar/2015:15:07:19 +0800] "GET / HTTP/1.1" 302 20 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"'
+
+reg_oneapm = '^(?<client_ip>(?:(?<!\\d)(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(?!\\d)))\\s(?<server_ip>(?:(?<!\\d)(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})(?!\\d))):(?<server_port>\\d+)\\s(?<response_time>\\d*\\.\\d+|(?:0x[a-fA-F0-9]+|\\d+))\\s-\\s\\[(?<timestamp>[^\\]]*+)\\]\\s(?:"\\s*+(?<method>[^\\s"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\"|[^\\s\\?\\/"])++)\\/++)?(?:(?:\\\\"|[^\\s\\?\\/"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s"]++))*)?\\s*+")\\s(?<status>\\d+)\\s(?<response_size>\\d+)\\s(?<bytes>\\d+)\\s\\"-\\"\\s(?<client_dev_message>.*)'
+
+text_oneapm = '117.131.134.44 10.165.71.35:8080 0.367 - [22/Nov/2015:07:59:59 +0800] "POST mobile.oneapm.com/mobile/data" 200 856 566 "-" "Dalvik/1.6.0 (Linux; U; Android 4.4.4; M040 Build/KTU84P)"'
 
 local errptr = ffi.new('const char*[1]')
 local intptr = ffi.new('int[1]')

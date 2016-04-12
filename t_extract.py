@@ -178,6 +178,7 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
     """
         convert to normal regex via transform rules
     """
+    #print regex_expr
     rv = regex_expr
     convert_map = {}
     for match in stanza_re.finditer(regex_expr):
@@ -196,6 +197,7 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
         if True:
             transform_define = transforms[stanza_name]
             regex_expr = transform_define['REGEX'].replace('/','\/')
+            print expr_name,stanza_name,regex_expr
             if expr_name == '_':
                 regex_prefix = name_group_prefix
             else:
@@ -220,12 +222,16 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
                     convert_map[expr] = "(?<%s>%s)" % (expr_name, regex_normal_expr)
 
     # do replace
+    #print convert_map
     for k, v in convert_map.items():
         #print rv, '....>'
         rv = rv.replace("[[%s]]" % k, v)
         #print rv
     #print regex_expr, '0-0000'
     return rv
+
+
+
 
 def processing_transform_stanza(transforms, transform_stanza, prefix=''):
     # see the description
@@ -353,7 +359,43 @@ class DataProcessor(object):
             return rv.replace("\\", "\\\\").replace('\"', '\\"')
             #return re.escape(rv)
         else:
-            return rv
+            return rv 
+
+    def get_names(self, step_name):
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        names = list()
+        for n in name:
+            names.append('\'' + n + '\'')
+        return '{' + ','.join(names) + '}'
+
+    def get_names_raw(self, step_name):
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        return name
+
+    def get_namestype(self, step_name):
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        namestype = list()
+        for n in name:
+            nt = n + '=\'string\''
+            namestype.append(nt)
+        return '{' + ','.join(namestype) + '}'
+
+    def get_names_count(self, step_name):
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        return len(name)
+
 
 
 def extract(source_types, source_type, props, transforms, log_file):
@@ -367,6 +409,8 @@ def extract(source_types, source_type, props, transforms, log_file):
 
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('extract.jinja2.lua')
+    namestype_template = env.get_template('sourcetype_namestype.conf')
+
     # read the source type
     # read option value
     # ref: http://docs.splunk.com/Documentation/Splunk/6.2.2/Data/Indexmulti-lineevents
@@ -391,6 +435,7 @@ def extract(source_types, source_type, props, transforms, log_file):
     #print '--------', line_breaker, (line_merge and True), line_merge
     #FIXME: escape regex-expr
     #line_breaker = line_breaker.replace('\\', "\\\\")
+
     options = {
         'default_linebreaker': default_line_breaker,
         'custom_linebreaker': not default_line_breaker,
@@ -430,28 +475,42 @@ def extract(source_types, source_type, props, transforms, log_file):
                 reg_field = '_raw'
             # TODO: deal -extract
             print 'value:\t', reg_expr, '->', reg_field
-
+    
     # do execute
-    lua_code_generated = template.render(processor=processor, max_events=max_events, options=options)
-    print lua_code_generated
-    # write to ...
-    fname = "_t.lua"
-    with open(fname, 'w') as fh:
-        fh.write(lua_code_generated)
+    namestype = {}
+    fnamestype = "namestype/%s.conf" %source_type
+    if os.path.isfile(fnamestype):
+        namestype = spl_common.readConfFile(fnamestype)
+    else:
+        sourcetype_namestype_generated = namestype_template.render(processor=processor,sourcetype=source_type)
+        with open(fnamestype, 'w') as fh:
+            fh.write(sourcetype_namestype_generated)
+        print('please setting ' + fnamestype + ' fields type!!!')
+        exit(-1)
+    
+    fgenerate_lua = "sourcetype_lua/%s.lua" % source_type
+    if ''.join(namestype[source_type].values()):
+        namestype_list = list()
+        for k,v in namestype[source_type].items():
+            namestype_list.append(k+'=\''+v+'\'')
+        namestype_string = '{' + ','.join(namestype_list) + '}'
+        lua_code_generated = template.render(processor=processor,sourcetype=source_type,namestype=namestype_string, max_events=max_events, options=options)
+        
+        with open(fgenerate_lua, 'w') as fh:
+            fh.write(lua_code_generated)
+    else:
+        print('please setting ' + fnamestype + ' fields type!!!')
 
     try:
-        #os.system("luajit %s %s" % (fname, log_file))
         os.system("wc -l %s" % (log_file))
         timebegin = time.time()
-        os.system("luajit %s %s" % (fname, log_file))
+        os.system("luajit %s %s" % (fgenerate_lua, log_file))
         timeend = time.time()
         times = timeend - timebegin
         print 'times:',times
     finally:
-        #os.remove(fname)
+        #os.remove(fgenerate_lua)
         pass
-    # remove the lua source.
-
 
 if __name__ == '__main__':
 
@@ -491,13 +550,4 @@ if __name__ == '__main__':
         log_file = sys.argv[3]
         extract(source_types, source_type, props, transforms, log_file)
 
-    if len(sys.argv) >= 5:
-        source_type = sys.argv[2]
-        log_file = sys.argv[3]
-        timestampconffilename = sys.argv[4]
-        if sys.argv[5]:
-            debug = strtobool(sys.argv[5])
-        else:
-            debug = True
-        #multiline(source_type,transforms,props,log_file,timestampconffilename,debug)
 # end of file

@@ -2,64 +2,22 @@
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
 
-local namestype = {{ namestype }}
+local namestype = {status='int',client_ip='string',server_ip='string',client_dev_message='string',timestamp='string',bytes='int',uri='string',uri__domain='string',uri_path='string',uri_='string',version='string',uri_query='string',server_port='int',file='string',response_size='int',root='string',method='string',response_time='double'}
 -- build series transform | report | extract
 -- report
-{% if processor.step_reports %}
-{% for step_name in processor.step_reports %}
 
-local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
-local n = {{processor.get_names_count(step_name)}}
 
-{% endfor %}
 
-{% elif processor.step_transform %}
--- transform
-{% for step_name in processor.step_transform %}
+local reg = "^(?<client_ip>\\S+)\\s(?<server_ip>\\S+):(?<server_port>\\d+)\\s(?<response_time>\\d*\\.\\d+|(?:0x[a-fA-F0-9]+|\\d+))\\s-\\s\\[(?<timestamp>[^\\]]*+)\\]\\s(?:\"\\s*+(?<method>[^\\s\"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s\"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\\"|[^\\s\\?\\/\"])++)\\/++)?(?:(?:\\\\\"|[^\\s\\?\\/\"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s\"]++))*)?\\s*+\")\\s(?<status>\\d+)\\s(?<response_size>\\d+)\\s(?<bytes>\\d+)\\s\\\"-\\\"\\s(?<client_dev_message>.*)"
+local names = {'client_ip','server_ip','server_port','response_time','timestamp','method','uri','uri_','uri__domain','uri_path','root','file','uri_query','version','status','response_size','bytes','client_dev_message'}
+local n = 18
 
-local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
-local n = {{processor.get_names_count(step_name)}}
 
-{% endfor %}
-{% elif processor.step_extract %}
--- extract
-{% for step_name in processor.step_extract %}
-
-local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
-local n = {{processor.get_names_count(step_name)}}
-
-{% endfor %}
-{% endif -%}
 
 -- TODO: 1 create a event emit, on_event?
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
-{% if options.get('multiline') %}
-local MultiLineEventFeed = {
-    line_pos = 0,
-    -- prealloc {{ max_events }} entry, to avoid table's realloc
-    lines = { {% for i in range(0, max_events+1)%}'', {% endfor %} }
-end
 
-function MultiLineEventFeed:feed(new_line)
-    if self.line_pos >= {{ max_events }} then
-        return false
-    end
-    self.lines[self.line_pos] = new_line
-    self.line_pos = self.line_pos + 1
-    return true
-end
-
-function MultiLineEventFeed:new_event()
-    -- called when self.lines contains a whole event.
-end
-
-local feeder = MultiLineEventFeed:new()
-{% endif -%}
-{% if options.get('default_linebreaker') %}
 -- default single line, use [\r\n]
 local DefaultLineBreakerFeed = {
     delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
@@ -126,55 +84,7 @@ end
 
 
 local feeder = DefaultLineBreakerFeed:new()
-{% endif -%}
-{% if options.get('custom_linebreaker') %}
--- custom line breaker
-local CustomLineBreakerFeed = {
-    line_breaker_re = nil,
-    line_data = nil
-}
 
-function CustomLineBreakerFeed:new(o)
-    o = o or {}
-    setmetatable(o, self)
-    self.__index = self
-    self.line_breaker_re = rex_pcre.new("{{ options.get('linebreaker_regex') }}")
-    return o
-end
-
-function CustomLineBreakerFeed:new_event(event_lines)
-    -- processing the events
-    
-    print ("=====")
-end
-
-function CustomLineBreakerFeed:feed(data)
-    -- each time read buffer_size's length data. try find line_breaker_re in the buffer, if not store it.
-    local buffer = nil
-    if self.line_data ~= nil then
-        buffer = self.line_data..data
-    else
-        buffer = data   -- fast path
-    end
-
-    local match_pos = 1
-    while true do
-        local b, e, _ = self.line_breaker_re:exec(buffer, match_pos)
-        if b ~= nil then
-            -- for fast processing subset a string is NOT require.
-            local event_lines = (buffer.sub(buffer, match_pos, b))
-            match_pos = e + 1
-            self:new_event(event_lines)
-        else
-            self.line_data = buffer
-            break
-        end
-    end -- end wile
-
-end
-
-local feeder = CustomLineBreakerFeed:new()
-{% endif %}
 
 local ffi = require('ffi')
 require('libpcre.pcre_header')
