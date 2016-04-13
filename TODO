@@ -1,2 +1,31 @@
 1. copy datetime.xml to etc/
 
+
+日志格式抽取的 TODO
+
+1  对 \n ， \r\n， 或 \r 的日志行进行切割
+2  根据 特定的正则表达式 对 日志进行切割
+3  将前面 切割的多行， 按照 预制的条件 合并为 一个分组
+4  正确识别日志文件中的 DateTime
+5  根据 用户配置的规则， 正确生成正则表达式； 对于不能正常抽取的日志数据，需要能够进行记录
+
+
+- 正确处理 REPORT- 流水线
+- 正确处理 TRANSFORMS- 流水线
+- 正确处理 EXTRACT
+    需要支持 in 关键词
+
+6  能够记录 REPORT- TRANSFORMS- EXTRACT 产生的 固定名称的 field
+7  抽取过程中，　根据 source_key 指定的字段读取数据，　默认为　_raw
+8  支持　Format，　
+　　－　可以支持　Key=Value　的形式
+9  计算punct
+10 需要支持 dest_key
+11 抽取时，需要支持 multivalue， 可以多次执行正则表达式
+
+
+
+测试 事件生成器
+https://github.com/splunk/eventgen
+
+
