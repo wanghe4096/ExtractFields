@@ -7,7 +7,6 @@ tests/sentry/api/endpoints/test_host_stream.py
 .idea
 *.egg-info
 *.pyc
-*.log
 *.egg
 *.db
 *.pid

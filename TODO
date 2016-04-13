@@ -22,7 +22,13 @@
 9  计算punct
 10 需要支持 dest_key
 11 抽取时，需要支持 multivalue， 可以多次执行正则表达式
+12 需要支持 http://docs.splunk.com/Documentation/Splunk/latest/Admin/Wmiconf wmi 的数据采集格式
+    e.g. https://github.com/davidm/luacom/tree/master/demo/wmi
+    Refer http://www.robvanderwoude.com/wmigen.php
 
+20 需要支持 Splunk App for Windows Infrastructure
+    https://splunkbase.splunk.com/app/1680/
+    Refer http://docs.splunk.com/Documentation/MSApp
 
 
 测试 事件生成器

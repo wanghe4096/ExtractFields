@@ -1,0 +1,227 @@
+2/1/10
+3:17:18.009 PM
+
+02/01/2010 15:17:18.0099
+dcName=stuff.splunk.com
+admonEventType=Update
+Names:
+                objectCategory=CN=Computer,CN=Schema,CN=Configuration
+                name=stuff2
+                displayName=stuff2
+                distinguishedName=CN=stuff2,CN=Computers
+Object Details:
+                sAMAccountType=805306369
+                sAMAccountName=stuff2
+                logonCount=4216
+                accountExpires=9223372036854775807
+                objectSid=S-1-5-21-3436176729-1841096389-3700143990-1190
+                primaryGroupID=515
+                pwdLastSet=06:30:13 pm, Sat 11/27/2010
+                lastLogon=06:19:43 am, Sun 11/28/2010
+                lastLogoff=0
+                badPasswordTime=0
+                countryCode=0
+                codePage=0
+                badPwdCount=0
+                userAccountControl=4096
+                objectGUID=blah
+                whenChanged=01:02.11 am, Thu 01/28/2010
+                whenCreated=05:29.50 pm, Tue 11/25/2008
+                objectClass=top|person|organizationalPerson|user|computer
+Event Details:
+                uSNChanged=2921916
+                uSNCreated=1679623
+                instanceType=4
+Additional Details:
+                isCriticalSystemObject=FALSE
+                servicePrincipalName=TERMSRV/stuff2|TERMSRV blah
+                dNSHostName=stuff2.splunk.com
+                operatingSystemServicePack=Service Pack 2
+                operatingSystemVersion=6.0 (6002)
+                operatingSystem=Windows Vista? Ultimate
+localPolicyFlags=0
+
+---splunk-admon-end-of-event---
+
+2/1/10
+3:11:16.095 PM
+
+02/01/2010 15:11:16.0954
+dcName=stuff.splunk.com
+admonEventType=Update
+Names:
+                name=SplunkTest
+DEL:blah
+                distinguishedName=OU=SplunkTest\0ADEL:blah,CN=Deleted Objects
+DEL:blah
+Object Details:
+                objectGUID=blah
+                whenChanged=11:31.13 pm, Thu 01/28/2010
+                whenCreated=11:27.12 pm, Thu 01/28/2010
+                objectClass=top|organizationalUnit
+Event Details:
+                uSNChanged=2922895
+                uSNCreated=2922846
+                instanceType=4
+Additional Details:
+                dSCorePropagationData=20100128233113.0Z|20100128233113.0Z|20100128233113.0Z|16010108151056.0Z
+                lastKnownParent=stuff
+                '''isDeleted=TRUE'''
+
+---splunk-admon-end-of-event---
+
+2/1/10
+3:11:09.074 PM
+
+02/01/2010 15:11:09.0748
+dcName=ftw.ad.splunk.com
+admonEventType=Sync
+Names:
+                name=NTDS Settings
+                distinguishedName=CN=NTDS Settings,CN=stuff,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration
+                cn=NTDS Settings
+                objectCategory=CN=NTDS-DSA,CN=Schema,CN=Configuration,DC=ad,DC=splunk,DC=com
+                fullPath=LDAP://stuff.splunk.com/<GUID=bla bla bla>
+                CN=NTDS Settings
+Object Details:
+                whenCreated=10:15.04 pm, Tue 02/12/2008
+                whenChanged=10:23.00 pm, Tue 02/12/2008
+                objectGUID=bla bla bla
+                objectClass=top|applicationSettings|nTDSDSA
+                classPath=nTDSDSA
+Event Details:
+                instanceType=4
+Additional Details:
+                systemFlags=33554432
+                showInAdvancedViewOnly=TRUE
+                serverReferenceBL=CN=stuff,CN=Domain System Volume (SYSVOL share),CN=File Replication Service,CN=System
+                options=1
+                msDS-hasMasterNCs=DC=ForestDnsZones|DC=DomainDnsZones|CN=Schema,CN=Configuration|CN=Configuration
+                msDS-HasInstantiatedNCs=
+                msDS-HasDomainNCs=blah
+                msDS-Behavior-Version=2
+                invocationId=bla bla bla
+                hasMasterNCs=CN=Schema,CN=Configuration|CN=Configuration
+                dSCorePropagationData=
+                dMDLocation=CN=Schema,CN=Configuration
+                nTSecurityDescriptor=NT AUTHORITY\Authenticated Users
+SchemaName=LDAP://stuff.splunk.com/schema/nTDSDSA
+
+---splunk-admon-end-of-event---
+
+02/01/2010 15:11:16.0518
+dcName=LDAP://stuff.splunk.com/
+admonEventType=schema
+className=msExchProtocolCfgSMTPIPAddress
+classCN=ms-Exch-Protocol-Cfg-SMTP-IP-Address
+instanceType=MandatoryProperties
+nTSecurityDescriptor=MandatoryProperties
+objectCategory=MandatoryProperties
+objectClass=MandatoryProperties
+adminDescription=OptionalProperties
+adminDisplayName=OptionalProperties
+allowedAttributes=OptionalProperties
+allowedAttributesEffective=OptionalProperties
+allowedChildClasses=OptionalProperties
+allowedChildClassesEffective=OptionalProperties
+bridgeheadServerListBL=OptionalProperties
+canonicalName=OptionalProperties
+cn=OptionalProperties
+createTimeStamp=OptionalProperties
+description=OptionalProperties
+directReports=OptionalProperties
+displayName=OptionalProperties
+displayNamePrintable=OptionalProperties
+distinguishedName=OptionalProperties
+dSASignature=OptionalProperties
+dSCorePropagationData=OptionalProperties
+extensionName=OptionalProperties
+flags=OptionalProperties
+fromEntry=OptionalProperties
+frsComputerReferenceBL=OptionalProperties
+fRSMemberReferenceBL=OptionalProperties
+fSMORoleOwner=OptionalProperties
+heuristics=OptionalProperties
+isCriticalSystemObject=OptionalProperties
+isDeleted=OptionalProperties
+isPrivilegeHolder=OptionalProperties
+lastKnownParent=OptionalProperties
+legacyExchangeDN=OptionalProperties
+managedObjects=OptionalProperties
+masteredBy=OptionalProperties
+memberOf=OptionalProperties
+modifyTimeStamp=OptionalProperties
+mS-DS-ConsistencyChildCount=OptionalProperties
+mS-DS-ConsistencyGuid=OptionalProperties
+msCOM-PartitionSetLink=OptionalProperties
+msCOM-UserLink=OptionalProperties
+msDFSR-ComputerReferenceBL=OptionalProperties
+msDFSR-MemberReferenceBL=OptionalProperties
+msDS-Approx-Immed-Subordinates=OptionalProperties
+msDs-masteredBy=OptionalProperties
+msDS-MembersForAzRoleBL=OptionalProperties
+msDS-NCReplCursors=OptionalProperties
+msDS-NCReplInboundNeighbors=OptionalProperties
+msDS-NCReplOutboundNeighbors=OptionalProperties
+msDS-NonMembersBL=OptionalProperties
+msDS-ObjectReferenceBL=OptionalProperties
+msDS-OperationsForAzRoleBL=OptionalProperties
+msDS-OperationsForAzTaskBL=OptionalProperties
+msDS-ReplAttributeMetaData=OptionalProperties
+msDS-ReplValueMetaData=OptionalProperties
+msDS-TasksForAzRoleBL=OptionalProperties
+msDS-TasksForAzTaskBL=OptionalProperties
+msExchADCGlobalNames=OptionalProperties
+msExchALObjectVersion=OptionalProperties
+msExchHideFromAddressLists=OptionalProperties
+msExchInconsistentState=OptionalProperties
+msExchIPAddress=OptionalProperties
+msExchTurfList=OptionalProperties
+msExchUnmergedAttsPt=OptionalProperties
+msExchVersion=OptionalProperties
+msSFU30PosixMemberOf=OptionalProperties
+name=OptionalProperties
+netbootSCPBL=OptionalProperties
+nonSecurityMemberBL=OptionalProperties
+objectGUID=OptionalProperties
+objectVersion=OptionalProperties
+otherWellKnownObjects=OptionalProperties
+ownerBL=OptionalProperties
+partialAttributeDeletionList=OptionalProperties
+partialAttributeSet=OptionalProperties
+possibleInferiors=OptionalProperties
+proxiedObjectName=OptionalProperties
+proxyAddresses=OptionalProperties
+queryPolicyBL=OptionalProperties
+replicatedObjectVersion=OptionalProperties
+replicationSignature=OptionalProperties
+replPropertyMetaData=OptionalProperties
+replUpToDateVector=OptionalProperties
+repsFrom=OptionalProperties
+repsTo=OptionalProperties
+revision=OptionalProperties
+sDRightsEffective=OptionalProperties
+serverReferenceBL=OptionalProperties
+showInAddressBook=OptionalProperties
+showInAdvancedViewOnly=OptionalProperties
+siteObjectBL=OptionalProperties
+structuralObjectClass=OptionalProperties
+subRefs=OptionalProperties
+subSchemaSubEntry=OptionalProperties
+systemFlags=OptionalProperties
+unmergedAtts=OptionalProperties
+url=OptionalProperties
+uSNChanged=OptionalProperties
+uSNCreated=OptionalProperties
+uSNDSALastObjRemoved=OptionalProperties
+USNIntersite=OptionalProperties
+uSNLastObjRem=OptionalProperties
+uSNSource=OptionalProperties
+wbemPath=OptionalProperties
+wellKnownObjects=OptionalProperties
+whenChanged=OptionalProperties
+whenCreated=OptionalProperties
+wWWHomePage=OptionalProperties
+
+---splunk-admon-end-of-event---
+
