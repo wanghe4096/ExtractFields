@@ -1,15 +1,15 @@
 
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
-
-local namestype = {{ namestype }}
+local {{sourcetype}} = {}
+{{sourcetype}}.namestype = {{ namestype }}
 -- build series transform | report | extract
 -- report
 {% if processor.step_reports %}
 {% for step_name in processor.step_reports %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -19,7 +19,7 @@ local n = {{processor.get_names_count(step_name)}}
 {% for step_name in processor.step_transform %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -28,7 +28,7 @@ local n = {{processor.get_names_count(step_name)}}
 {% for step_name in processor.step_extract %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-local names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -57,7 +57,7 @@ function MultiLineEventFeed:new_event()
     -- called when self.lines contains a whole event.
 end
 
-local feeder = MultiLineEventFeed:new()
+{{sourcetype}}.feeder = MultiLineEventFeed:new()
 {% endif -%}
 {% if options.get('default_linebreaker') %}
 -- default single line, use [\r\n]
@@ -125,7 +125,7 @@ function DefaultLineBreakerFeed:finished(data)
 end
 
 
-local feeder = DefaultLineBreakerFeed:new()
+{{sourcetype}}.feeder = DefaultLineBreakerFeed:new()
 {% endif -%}
 {% if options.get('custom_linebreaker') %}
 -- custom line breaker
@@ -173,35 +173,44 @@ function CustomLineBreakerFeed:feed(data)
 
 end
 
-local feeder = CustomLineBreakerFeed:new()
+{{sourcetype}}.feeder = CustomLineBreakerFeed:new()
 {% endif %}
 
 local ffi = require('ffi')
-require('libpcre.pcre_header')
-local L = ffi.load('pcre')
+ffi.cdef[[
+typedef struct real_pcre pcre;
+typedef struct pcre_extra pcre_extra;
+static const int PCRE_STUDY_JIT_COMPILE = 0x00000001;
+pcre *pcre_compile(const char *, int, const char **, int *,
+                  const unsigned char *);
+pcre *pcre_compile2(const char *, int, int *, const char **,
+                  int *, const unsigned char *);
+pcre_extra *pcre_study(const pcre *, int, const char **);
+int pcre_exec(const pcre *, const pcre_extra *, const char *,
+                   int, int, int, int *, int);
+void pcre_free_study(pcre_extra *);
+void (*pcre_free)(void *);
+]]
+local pcre = ffi.load('pcre')
 local errptr = ffi.new('const char*[1]')
 local intptr = ffi.new('int[1]')
-local re = L.pcre_compile(reg, 0, errptr, intptr, nil)
+local re = pcre.pcre_compile(reg, 0, errptr, intptr, nil)
 
 local size = (n + 1) * 3
 local ovector = ffi.new('int['..size..']')
-local re_stu = L.pcre_study(re, L.PCRE_STUDY_JIT_COMPILE, errptr)
+local re_stu = pcre.pcre_study(re, pcre.PCRE_STUDY_JIT_COMPILE, errptr)
 local ret = {}
 local st = n + 1 
 
 
 function match(subject, regex)
-  L.pcre_exec(re, re_stu, subject, #subject, 0, 0, ovector, size)
+  pcre.pcre_exec(re, re_stu, subject, #subject, 0, 0, ovector, size)
   for i=0, n*2, 2 do
     if ovector[i] >= 0 then
       ret[i/2] = subject:sub(ovector[i]+1, ovector[i+1])
     end
   end
   return ret
-end
-
-function string.ends(String,End)
-   return End=='' or string.sub(String,-string.len(End))==End
 end
 
 
@@ -220,31 +229,14 @@ local f = io.open(data_file, "rb")
 while true do
     local block = f:read(buffer_size)
     if not block then
-        feeder:finished()
+        {{sourcetype}}.feeder:finished()
         break
     end
-    -- io.write(block)
-    feeder:feed(block)
+    {{sourcetype}}.feeder:feed(block)
 end
 f:close()
---pcre.L.pcre_free_study(pcre.re_stu)
---pcre.L.pcre_free(pcre.re)
-
+--pcre.pcre_free_study(pcre.re_stu)
+--pcre.pcre_free(pcre.re)
 module(...)
-
--- read buffer from stdin
---local buffer_size = 2^16    -- make a 64k buffer. use this buffer make reading faster.
---local f = io.open(data_file, "rb")
---while true do
---    local block = f:read(buffer_size)
---    if not block then
---        feeder:finished()
---        break
---    end
---    feeder:feed(block)
---end
---f:close()
---pcre.L.pcre_free_study(pcre.re_stu)
---pcre.L.pcre_free(pcre.re)
-
+return {{sourcetype}}
 -- end of file
