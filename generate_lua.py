@@ -124,7 +124,7 @@ def extract(source_type, props, transforms, log_file):
         exit(-1)
 
     env = Environment(loader=FileSystemLoader('templates'))
-    template = env.get_template('extract.jinja2.lua')
+    template = env.get_template('extract.lua')
     namestype_template = env.get_template('sourcetype_namestype.conf')
 
     max_events = int(props[source_type].get('MAX_EVENTS', props['default'].get('MAX_EVENTS', 250)))
@@ -174,7 +174,7 @@ def extract(source_type, props, transforms, log_file):
         exit(-1)
     
     fgenerate_lua = "sourcetype_lua/%s.lua" % source_type
-    if ''.join(namestype[source_type].values()):
+    if ''.join(namestype[source_type].values()) or not namestype[source_type]:
         namestype_list = list()
         for k,v in namestype[source_type].items():
             namestype_list.append(k+'=\''+v+'\'')
@@ -185,6 +185,7 @@ def extract(source_type, props, transforms, log_file):
             fh.write(lua_code_generated)
     else:
         print('please setting ' + fnamestype + ' fields type!!!')
+        exit(-1)
 
     try:
         os.system("wc -l %s" % (log_file))

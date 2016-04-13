@@ -2,22 +2,25 @@
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
-local oneapm = {}
-oneapm.namestype = {status='int',client_ip='string',server_ip='string',client_dev_message='string',timestamp='string',bytes='int',uri='string',uri__domain='string',uri_path='string',uri_='string',version='string',uri_query='string',server_port='int',file='string',response_size='int',root='string',method='string',response_time='double'}
+local catalina = {}
+catalina.namestype = {}
 -- build series transform | report | extract
 -- report
-
-
-
-local reg = "^(?<client_ip>\\S+)\\s(?<server_ip>\\S+):(?<server_port>\\d+)\\s(?<response_time>\\d*\\.\\d+|(?:0x[a-fA-F0-9]+|\\d+))\\s-\\s\\[(?<timestamp>[^\\]]*+)\\]\\s(?:\"\\s*+(?<method>[^\\s\"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s\"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\\"|[^\\s\\?\\/\"])++)\\/++)?(?:(?:\\\\\"|[^\\s\\?\\/\"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s\"]++))*)?\\s*+\")\\s(?<status>\\d+)\\s(?<response_size>\\d+)\\s(?<bytes>\\d+)\\s\\\"-\\\"\\s(?<client_dev_message>.*)"
-oneapm.names = {'client_ip','server_ip','server_port','response_time','timestamp','method','uri','uri_','uri__domain','uri_path','root','file','uri_query','version','status','response_size','bytes','client_dev_message'}
-local n = 18
-
-
-
 -- TODO: 1 create a event emit, on_event?
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
+
+if not reg then
+    reg = ''
+end
+
+if not catalina.names then
+    catalina.names = {}
+end
+
+if not n then
+    n = 0
+end
 
 local result = nil
 local count = nil
@@ -27,32 +30,43 @@ local line_data = nil
 
 local multiline_re = '\\d+:\\d+:\\d+'
 local linecount = 0
-local event = {}
-event['_raw'] = ''
+local event = ''
 local mt = nil
 local multiline = nil
 
 
--- default single line, use [\r\n]
-local DefaultLineBreakerFeed = {
+local MultiLineEventFeed = {
     delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
     line_data = nil     -- only a small mount data <- buffer
 }
 
-function DefaultLineBreakerFeed:new(o)
+function MultiLineEventFeed:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
     return o
 end
 
-function DefaultLineBreakerFeed:new_event(event_lines, b, e)
-    print_table(match(event_lines:sub(b, e)))
-    print(event_lines:sub(b, e))
-    return match(event_lines:sub(b, e))
+function MultiLineEventFeed:new_event(event_lines, b, e)
+    mt = nil
+    if rex_pcre.new(multiline_re):exec(event_lines:sub(b,e)) then
+        if linecount >= 1 then
+            print('===========')
+            print(event)
+            --mt = match(event['_raw'])
+            event = ''
+            linecount = 0
+        end
+        linecount = 1
+        event = event_lines:sub(b,e)         
+    else
+        linecount = linecount + 1
+        event = event .. '\n' .. event_lines:sub(b,e)
+    end
+    return mt
 end
 
-function DefaultLineBreakerFeed:feed(data)
+function MultiLineEventFeed:feed(data)
     result = {}
     count = 0
     i = 0
@@ -67,38 +81,48 @@ function DefaultLineBreakerFeed:feed(data)
         if data:byte(nexti-1) == 13 then
             if self.line_data ~= nil then
                 line_data = self.line_data..data:sub(1, nexti-2)
-                result[count] = self:new_event(line_data, 1, line_data:len())
+                --self:new_event(line_data, 1, line_data:len())
+                multiline = self:new_event(line_data, 1, line_data:len())
                 self.line_data = nil
             else
-                result[count] = self:new_event(data, i+1, nexti-2)
+                --self:new_event(data, i+1, nexti-2)
+                multiline = self:new_event(data, i+1, nexti-2)
             end
 
         else
             if self.line_data ~= nil then
                 line_data = self.line_data..data:sub(1, nexti-1)
-                result[count] = self:new_event(line_data, 1, line_data:len())
+                --self:new_event(line_data, 1, line_data:len())
+                multiline = self:new_event(line_data, 1, line_data:len())
                 self.line_data = nil
             else
-                result[count] = self:new_event(data, i+1, nexti-1)
+                --self:new_event(data, i+1, nexti-1)
+                multiline = self:new_event(data, i+1, nexti-1)
             end
         end
-
+        
         i = nexti
-        count = count + 1
+        if multiline then
+            result[count] = multiline
+            count = count + 1
+        end
     end
     return result
 end
 
-function DefaultLineBreakerFeed:finished(data)
+function MultiLineEventFeed:finished(data)
     result = {}
     if self.line_data ~= nil then
-        result[1] = self:new_event(self.line_data, 1, self.line_data:len())
+        multiline = self:new_event(self.line_data, 1, self.line_data:len())
+        if multiline then
+            result[1] = multiline
+        end
     end
     return result
 end
 
+catalina.feeder = MultiLineEventFeed:new()
 
-oneapm.feeder = DefaultLineBreakerFeed:new()
 
 
 local ffi = require('ffi')
@@ -155,14 +179,14 @@ local f = io.open(data_file, "rb")
 while true do
     local block = f:read(buffer_size)
     if not block then
-        oneapm.feeder:finished()
+        catalina.feeder:finished()
         break
     end
-    oneapm.feeder:feed(block)
+    catalina.feeder:feed(block)
 end
 f:close()
 --[[
-    aa = oneapm.feeder:feed(block)
+    aa = catalina.feeder:feed(block)
 
     for k,v in pairs(aa) do
         print('=======fields========')
@@ -174,5 +198,5 @@ f:close()
 --pcre.pcre_free_study(pcre.re_stu)
 --pcre.pcre_free(pcre.re)
 module(...)
-return oneapm
+return catalina
 -- end of file
