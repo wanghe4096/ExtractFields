@@ -3,7 +3,7 @@
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
 local catalina = {}
-catalina.namestype = {}
+catalina.namestype = {flag='true',description='please input the type of fields as follows,after you can input flag to true'}
 -- build series transform | report | extract
 -- report
 -- TODO: 1 create a event emit, on_event?
@@ -32,6 +32,9 @@ local linecount = 0
 local event = ''
 local events = nil
 local multiline = nil
+local match_fail = {}
+match_fail.event = {}
+match_fail.time = {}
 
 require('dateparse.DateParse')
 
@@ -53,7 +56,8 @@ end
 function MultiLineEventFeed:new_event(event_lines, b, e)
     events = nil
     if self.multiline_re == '' then
-        self.multiline_re = getAllMatches(event_lines:sub(b,e))._pattern
+        getAllMatches(event_lines:sub(b,e))
+        self.multiline_re = _pattern
         --self.multiline_re = '\\d+:\\d+:\\d+'
     end
     print('=====multiline_re=====')
@@ -61,8 +65,8 @@ function MultiLineEventFeed:new_event(event_lines, b, e)
     --if rex_pcre.new(self.multiline_re):exec(event_lines:sub(b,e)) then
     if match_time(event_lines:sub(b,e),self.multiline_re) then
         if linecount >= 1 then
-            print('=====event======')
-            print(event)
+            --print('=====event======')
+            --print(event)
             events = {}
             if reg == '' then
                 events.event = event
@@ -70,10 +74,20 @@ function MultiLineEventFeed:new_event(event_lines, b, e)
                 events.event = match(event)
             end
             events.time = getAllMatches(event)
-            print_table(events.time)
             if not events.event then
-                table.insert(match_fail,event)
+                print('fail match event:',event)
+                table.insert(match_fail.event,event)
                 events = nil
+            elseif not events.time then
+                print('fail match time:',event)
+                table.insert(match_fail.time,event)
+                events = nil
+            end
+            if events then
+                print('===events.time===')
+                print_table(events.time)
+                print('===events.event===')
+                print_table(events.event)
             end
             event = ''
             linecount = 0
@@ -131,9 +145,9 @@ function MultiLineEventFeed:feed(data)
     return result
 end
 
-function MultiLineEventFeed:finished(data)
+function MultiLineEventFeed:finished()
     result = {}
-    if self.line_data ~= nil then
+    if self.line_data ~= nil and self.line_data ~= '' then
         multiline = self:new_event(self.line_data, 1, self.line_data:len())
         if multiline then
             result[1] = multiline
@@ -147,21 +161,6 @@ catalina.feeder = MultiLineEventFeed:new()
 
 
 local ffi = require('ffi')
---[[
-ffi.cdef[[
-typedef struct real_pcre pcre;
-typedef struct pcre_extra pcre_extra;
-static const int PCRE_STUDY_JIT_COMPILE = 0x00000001;
-pcre *pcre_compile(const char *, int, const char **, int *,
-                  const unsigned char *);
-pcre *pcre_compile2(const char *, int, int *, const char **,
-                  int *, const unsigned char *);
-pcre_extra *pcre_study(const pcre *, int, const char **);
-int pcre_exec(const pcre *, const pcre_extra *, const char *,
-                   int, int, int, int *, int);
-void pcre_free_study(pcre_extra *);
-void (*pcre_free)(void *);
-]]
 
 local pcre = ffi.load('pcre')
 local errptr = ffi.new('const char*[1]')
@@ -187,8 +186,12 @@ end
 
 
 function print_table( t )
-    for k,v in pairs(t) do
-        print(k,v)
+    if type(t) == 'string' then
+        print(t)
+    else
+        for k,v in pairs(t) do
+            print(k,v)
+        end
     end
 end
 
@@ -207,14 +210,8 @@ while true do
     catalina.feeder:feed(block)
 end
 f:close()
---[[
-    aa = catalina.feeder:feed(block)
-
-    for k,v in pairs(aa) do
-        print('=======fields========')
-        print_table(v)
-    end
-    ]]
+print('===fail match===')
+print_table(match_fail)
 
 
 --pcre.pcre_free_study(pcre.re_stu)

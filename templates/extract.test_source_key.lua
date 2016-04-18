@@ -2,26 +2,103 @@
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
+require('dateparse.DateParse')
+local ffi = require('ffi')
+local pcre = ffi.load('pcre')
 local {{sourcetype}} = {}
 {{sourcetype}}.namestype = {{ namestype }}
 -- build series transform | report | extract
 -- report
 {% if processor.step_reports %}
+{{sourcetype}}.source_key_tab = {}
+{{sourcetype}}.source_key_names = {}
+local reg = ''
+local cn = 0
+local n = 0
+local n_tab = {}
+local re = nil
+local re_tab = {}
+local size =  nil
+local size_tab = {}
+local ovector = nil
+local ovector_tab = {}
+local re_stu = nil
+local re_stu_tab = {}
 {% for step_name in processor.step_reports %}
 
-local reg = "{{ processor.get_full_regex(step_name, True) }}"
-{{sourcetype}}.names = {{ processor.get_names(step_name) }}
-local n = {{processor.get_names_count(step_name)}}
+--local event_report_{{ processor.get_normal_name(step_name) }}_re = rex_pcre.new("{{ processor.get_full_regex(step_name, True) }}")
+--function event_report_{{ processor.get_normal_name(step_name) }}(new_event)
+
+--end
+cn = cn + 1
+{{sourcetype}}.source_key_tab[cn] = "{{processor.get_SOURCE_KEY(step_name)}}"
+{{sourcetype}}.source_key_names[cn] = {{ processor.get_names(step_name) }}
+
+reg = "{{ processor.get_full_regex(step_name, True) }}"
+local errptr_{{processor.get_normal_name(step_name)}} = ffi.new('const char*[1]')
+local intptr_{{processor.get_normal_name(step_name)}} = ffi.new('int[1]')
+
+n = {{processor.get_names_count(step_name)}}
+size = (n + 1) * 3
+ovector = ffi.new('int['..size..']')
+re = pcre.pcre_compile(reg, 0, errptr_{{processor.get_normal_name(step_name)}}, intptr_{{processor.get_normal_name(step_name)}}, nil)
+re_stu = pcre.pcre_study(re, pcre.PCRE_STUDY_JIT_COMPILE, errptr_{{processor.get_normal_name(step_name)}})
+
+n_tab[cn] = n
+size_tab[cn] = size
+ovector_tab[cn] = ovector
+re_tab[cn] = re
+re_stu_tab[cn] = re_stu
+
+
+--local reg = "{{ processor.get_full_regex(step_name, True) }}"
+--{{sourcetype}}.names = {{ processor.get_names(step_name) }}
+--local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
 
 {% elif processor.step_transform %}
 -- transform
+{{sourcetype}}.source_key_tab = {}
+{{sourcetype}}.source_key_names = {}
+{{sourcetype}}.dest_key_tab = {}
+local reg = ''
+local cn = 0
+local n = 0
+local n_tab = {}
+local re = nil
+local re_tab = {}
+local size =  nil
+local size_tab = {}
+local ovector = nil
+local ovector_tab = {}
+local re_stu = nil
+local re_stu_tab = {}
 {% for step_name in processor.step_transform %}
 
-local reg = "{{ processor.get_full_regex(step_name, True) }}"
-{{sourcetype}}.names = {{ processor.get_names(step_name) }}
-local n = {{processor.get_names_count(step_name)}}
+cn = cn + 1
+{{sourcetype}}.source_key_tab[cn] = "{{processor.get_SOURCE_KEY(step_name)}}"
+{{sourcetype}}.source_key_names[cn] = {{ processor.get_names(step_name) }}
+
+reg = "{{ processor.get_full_regex(step_name, True) }}"
+local errptr_{{processor.get_normal_name(step_name)}} = ffi.new('const char*[1]')
+local intptr_{{processor.get_normal_name(step_name)}} = ffi.new('int[1]')
+
+n = {{processor.get_names_count(step_name)}}
+size = (n + 1) * 3
+ovector = ffi.new('int['..size..']')
+re = pcre.pcre_compile(reg, 0, errptr_{{processor.get_normal_name(step_name)}}, intptr_{{processor.get_normal_name(step_name)}}, nil)
+re_stu = pcre.pcre_study(re, pcre.PCRE_STUDY_JIT_COMPILE, errptr_{{processor.get_normal_name(step_name)}})
+
+n_tab[cn] = n
+size_tab[cn] = size
+ovector_tab[cn] = ovector
+re_tab[cn] = re
+re_stu_tab[cn] = re_stu
+
+--local reg = "{{ processor.get_full_regex(step_name, True) }}"
+--{{sourcetype}}.names = {{ processor.get_names(step_name) }}
+--local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
 {% elif processor.step_extract %}
@@ -65,7 +142,6 @@ local match_fail = {}
 match_fail.event = {}
 match_fail.time = {}
 
-require('dateparse.DateParse')
 
 {% if options.get('multiline') %}
 local MultiLineEventFeed = {
@@ -94,8 +170,8 @@ function MultiLineEventFeed:new_event(event_lines, b, e)
     --if rex_pcre.new(self.multiline_re):exec(event_lines:sub(b,e)) then
     if match_time(event_lines:sub(b,e),self.multiline_re) then
         if linecount >= 1 then
-            --print('=====event======')
-            --print(event)
+            print('=====event======')
+            print(event)
             events = {}
             if reg == '' then
                 events.event = event
@@ -201,7 +277,17 @@ function DefaultLineBreakerFeed:new(o)
     return o
 end
 
+
+
 function DefaultLineBreakerFeed:new_event(event_lines, b, e)
+    local a = nil
+    for k,v in pairs(re_tab) do
+        print('===' .. k .. '===')
+        print(v,re_stu_tab[k],ovector_tab[k],size_tab[k],n_tab[k])
+        a = match(event_lines:sub(b, e),v,re_stu_tab[k],ovector_tab[k],size_tab[k],n_tab[k])
+        print_table(a)
+    end
+    --[[
     events = {}
     events.time = getAllMatches(event_lines:sub(b,e))
     events.event = match(event_lines:sub(b, e))
@@ -220,6 +306,7 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
         print('===events.event===')
         print_table(events.event)
     end
+]]
     return events
 end
 
@@ -328,7 +415,22 @@ end
 {{sourcetype}}.feeder = CustomLineBreakerFeed:new()
 {% endif %}
 
-local ffi = require('ffi')
+
+--[[
+ffi.cdef[[
+typedef struct real_pcre pcre;
+typedef struct pcre_extra pcre_extra;
+static const int PCRE_STUDY_JIT_COMPILE = 0x00000001;
+pcre *pcre_compile(const char *, int, const char **, int *,
+                  const unsigned char *);
+pcre *pcre_compile2(const char *, int, int *, const char **,
+                  int *, const unsigned char *);
+pcre_extra *pcre_study(const pcre *, int, const char **);
+int pcre_exec(const pcre *, const pcre_extra *, const char *,
+                   int, int, int, int *, int);
+void pcre_free_study(pcre_extra *);
+void (*pcre_free)(void *);
+
 
 local pcre = ffi.load('pcre')
 local errptr = ffi.new('const char*[1]')
@@ -351,15 +453,26 @@ function match(subject, regex)
   end
   return ret
 end
+]]
+
+local ret = {}
+
+function match(subject, _re,_re_stu,_ovector,_size,_n)
+  pcre.pcre_exec(_re, _re_stu, subject, #subject, 0, 0, _ovector, _size)
+  print('#######')
+  print(_re,_re_stu,_ovector,_size,_n)
+  for i=0, _n*2, 2 do
+    if _ovector[i] >= 0 then
+      ret[i/2] = subject:sub(_ovector[i]+1, _ovector[i+1])
+    end
+  end
+  return ret
+end
 
 
 function print_table( t )
-    if type(t) == 'string' then
-        print(t)
-    else
-        for k,v in pairs(t) do
-            print(k,v)
-        end
+    for k,v in pairs(t) do
+        print(k,v)
     end
 end
 
@@ -380,6 +493,14 @@ end
 f:close()
 print('===fail match===')
 print_table(match_fail)
+--[[
+    aa = {{sourcetype}}.feeder:feed(block)
+
+    for k,v in pairs(aa) do
+        print('=======fields========')
+        print_table(v)
+    end
+    ]]
 
 
 --pcre.pcre_free_study(pcre.re_stu)

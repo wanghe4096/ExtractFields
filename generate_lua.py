@@ -3,7 +3,15 @@
     测试　日志文件　解析
   
     用法: <bin>, <conf_path> <source_type> <log_file>,  list the source type's execute plan
-    python generate_lua.py etc access_combined samples/apache
+    python generate_lua.py etc access_combined samples/apache                  ok
+    python generate_lua.py etc splunkd_access samples/splunkd_access.log    test
+
+    python generate_lua.py etc ActiveDirectory samples/splunk-ad.log      fail   
+    把([\r\n]+---splunk-admon-end-of-event---\r\n[\r\n]*)  变为 ([\r\n]+---splunk-admon-end-of-event---[\r\n]*) 就可以了,可能该行日志不存在\r\n
+
+    python generate_lua.py etc wmi samples/splunk-wmi.log            ok
+    python generate_lua.py etc oneapm samples/oneapm_nginx_access.log   ok
+    python generate_lua.py etc catalina samples/catalina          ok
 
 """
 
@@ -150,12 +158,12 @@ class DataProcessor(object):
 
     def get_SOURCE_KEY(self, step_name):
         transform_define = transforms[step_name]
-        SOURCE_KEY = transform_define['SOURCE_KEY']
+        SOURCE_KEY = transform_define.get('SOURCE_KEY',transforms['default'].get('SOURCE_KEY','_raw'))
         return SOURCE_KEY
 
     def get_DEST_KEY(self, step_name):
         transform_define = transforms[step_name]
-        DEST_KEY = transform_define['DEST_KEY']
+        DEST_KEY = transform_define.get('DEST_KEY',transforms['default'].get('DEST_KEY',''))
         return DEST_KEY
 
     def get_names_raw(self, step_name):
@@ -163,6 +171,8 @@ class DataProcessor(object):
         regex_expr = transform_define['REGEX']
         rv = build_normal_regex(regex_expr, transforms)
         name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        name1 = re.findall('\?\P\<([a-zA-Z_]+?)\>',rv)
+        name.extend(name1)
         return name
 
     def get_names(self, step_name):
@@ -181,6 +191,15 @@ class DataProcessor(object):
         rv = build_normal_regex(regex_expr, transforms)
         name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
         return len(name)
+
+    def get_normal_name(self, name):
+        new_name = []
+        for c in name:
+            if ord(c) in range(ord('a'), ord('z')) or c in range(ord('A'), ord('Z')) or c in range(ord('0'), ord('9')):
+                new_name.append(c)
+            else:
+                new_name.append('_')
+        return ''.join(new_name)
 
 
 def extract(source_type, props, transforms, log_file):
@@ -216,22 +235,22 @@ def extract(source_type, props, transforms, log_file):
         if k.startswith('REPORT-'):
             transform_stanza_list = v.split(',')
             for transform_stanza in transform_stanza_list:
-                processor.add_report(transform_stanza)
+                processor.add_report(transform_stanza.strip())
 
         if k.startswith('TRANSFORMS-'):
             transform_stanza_list = v.split(',')
             for transform_stanza in transform_stanza_list:
-                processor.add_transform(transform_stanza)
+                processor.add_transform(transform_stanza.strip())
 
-        if k.startswith('EXTRACT-'):
-            rules = v.split(' in ')
-            if rules > 1:
-                reg_expr = rules[0]
-                reg_field = rules[1]
-            else:
-                reg_expr = rules[0]
-                reg_field = '_raw'
-            print 'value:\t', reg_expr, '->', reg_field
+        #if k.startswith('EXTRACT-'):
+            #rules = v.split(' in ')
+            #if rules > 1:
+                #reg_expr = rules[0]
+                #reg_field = rules[1]
+            #else:
+                #reg_expr = rules[0]
+                #reg_field = '_raw'
+            #print 'value:\t', reg_expr, '->', reg_field
     
     namestype = {}
     fnamestype = "namestype/%s.conf" %source_type
@@ -245,7 +264,7 @@ def extract(source_type, props, transforms, log_file):
         exit(-1)
     
     fgenerate_lua = "sourcetype_lua/%s.lua" % source_type
-    if ''.join(namestype[source_type].values()) or not namestype[source_type]:
+    if strtobool(namestype[source_type]['flag']):
         namestype_list = list()
         for k,v in namestype[source_type].items():
             namestype_list.append(k+'=\''+v+'\'')

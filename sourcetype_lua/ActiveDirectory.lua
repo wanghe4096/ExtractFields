@@ -2,10 +2,19 @@
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
-local wmi = {}
-wmi.namestype = {flag='true',description='please input the type of fields as follows,after you can input flag to true'}
+local ActiveDirectory = {}
+ActiveDirectory.namestype = {flag='true',description='please input the type of fields as follows,after you can input flag to true'}
 -- build series transform | report | extract
 -- report
+
+
+
+local reg = "(?<_KEY_1>[\\w-]+)=(?<_VAL_1>[^\\r\\n]*)"
+ActiveDirectory.names = {}
+local n = 0
+
+
+
 -- TODO: 1 create a event emit, on_event?
 -- TODO: 2 feed data line by line, and put it into a buffer
 -- TODO: 3 do extractor
@@ -14,8 +23,8 @@ if not reg then
     reg = ''
 end
 
-if not wmi.names then
-    wmi.names = {}
+if not ActiveDirectory.names then
+    ActiveDirectory.names = {}
 end
 
 if not n then
@@ -49,8 +58,8 @@ function CustomLineBreakerFeed:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
-    --self.line_breaker_re = rex_pcre.new("([\r\n]+---splunk-wmi-end-of-event---\r\n[\r\n]*)")
-    self.line_breaker_re = rex_pcre.new("([\r\n]+---splunk-wmi-end-of-event---\r\n[\r\n]*)")
+    --self.line_breaker_re = rex_pcre.new("([\r\n]+---splunk-admon-end-of-event---\r\n[\r\n]*)")
+    self.line_breaker_re = rex_pcre.new("([\r\n]+---splunk-admon-end-of-event---\r\n[\r\n]*)")
     return o
 end
 
@@ -92,25 +101,10 @@ function CustomLineBreakerFeed:finished()
     end
 end
 
-wmi.feeder = CustomLineBreakerFeed:new()
+ActiveDirectory.feeder = CustomLineBreakerFeed:new()
 
 
 local ffi = require('ffi')
---[[
-ffi.cdef[[
-typedef struct real_pcre pcre;
-typedef struct pcre_extra pcre_extra;
-static const int PCRE_STUDY_JIT_COMPILE = 0x00000001;
-pcre *pcre_compile(const char *, int, const char **, int *,
-                  const unsigned char *);
-pcre *pcre_compile2(const char *, int, int *, const char **,
-                  int *, const unsigned char *);
-pcre_extra *pcre_study(const pcre *, int, const char **);
-int pcre_exec(const pcre *, const pcre_extra *, const char *,
-                   int, int, int, int *, int);
-void pcre_free_study(pcre_extra *);
-void (*pcre_free)(void *);
-]]
 
 local pcre = ffi.load('pcre')
 local errptr = ffi.new('const char*[1]')
@@ -136,8 +130,12 @@ end
 
 
 function print_table( t )
-    for k,v in pairs(t) do
-        print(k,v)
+    if type(t) == 'string' then
+        print(t)
+    else
+        for k,v in pairs(t) do
+            print(k,v)
+        end
     end
 end
 
@@ -150,26 +148,18 @@ local f = io.open(data_file, "rb")
 while true do
     local block = f:read(buffer_size)
     if not block then
-        wmi.feeder:finished()
+        ActiveDirectory.feeder:finished()
         break
     end
-    wmi.feeder:feed(block)
+    ActiveDirectory.feeder:feed(block)
 end
 f:close()
 print('===fail match===')
 print_table(match_fail)
---[[
-    aa = wmi.feeder:feed(block)
-
-    for k,v in pairs(aa) do
-        print('=======fields========')
-        print_table(v)
-    end
-    ]]
 
 
 --pcre.pcre_free_study(pcre.re_stu)
 --pcre.pcre_free(pcre.re)
 module(...)
-return wmi
+return ActiveDirectory
 -- end of file

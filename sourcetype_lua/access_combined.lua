@@ -3,7 +3,7 @@
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
 local access_combined = {}
-access_combined.namestype = {status='',cookie='',ident='',referer__domain='',bytes='',uri='',referer_='',uri__domain='',uri_path='',uri_='',version='',req_time='',user='',file='',useragent='',referer='',clientip='string',other='',root='',method='',uri_query=''}
+access_combined.namestype = {flag='true',description='please input the type of fields as follows,after you can input flag to true'}
 -- build series transform | report | extract
 -- report
 
@@ -120,9 +120,9 @@ function DefaultLineBreakerFeed:feed(data)
     return result
 end
 
-function DefaultLineBreakerFeed:finished(data)
+function DefaultLineBreakerFeed:finished()
     result = {}
-    if self.line_data ~= nil then
+    if self.line_data ~= nil and self.line_data ~= '' then
         result[1] = self:new_event(self.line_data, 1, self.line_data:len())
     end
     return result
