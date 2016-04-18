@@ -85,7 +85,8 @@ end
 function MultiLineEventFeed:new_event(event_lines, b, e)
     events = nil
     if self.multiline_re == '' then
-        self.multiline_re = getAllMatches(event_lines:sub(b,e))._pattern
+        getAllMatches(event_lines:sub(b,e))
+        self.multiline_re = _pattern
         --self.multiline_re = '\\d+:\\d+:\\d+'
     end
     print('=====multiline_re=====')
@@ -173,9 +174,9 @@ function MultiLineEventFeed:feed(data)
     return result
 end
 
-function MultiLineEventFeed:finished(data)
+function MultiLineEventFeed:finished()
     result = {}
-    if self.line_data ~= nil then
+    if self.line_data ~= nil and self.line_data ~= '' then
         multiline = self:new_event(self.line_data, 1, self.line_data:len())
         if multiline then
             result[1] = multiline
@@ -259,9 +260,9 @@ function DefaultLineBreakerFeed:feed(data)
     return result
 end
 
-function DefaultLineBreakerFeed:finished(data)
+function DefaultLineBreakerFeed:finished()
     result = {}
-    if self.line_data ~= nil then
+    if self.line_data ~= nil and self.line_data ~= '' then
         result[1] = self:new_event(self.line_data, 1, self.line_data:len())
     end
     return result
@@ -281,6 +282,7 @@ function CustomLineBreakerFeed:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
+    --self.line_breaker_re = rex_pcre.new("{{ options.get('linebreaker_regex') }}")
     self.line_breaker_re = rex_pcre.new("{{ options.get('linebreaker_regex') }}")
     return o
 end
@@ -289,6 +291,7 @@ function CustomLineBreakerFeed:new_event(event_lines)
     -- processing the events
     
     print ("=====")
+    print(event_lines)
 end
 
 function CustomLineBreakerFeed:feed(data)
@@ -309,11 +312,17 @@ function CustomLineBreakerFeed:feed(data)
             match_pos = e + 1
             self:new_event(event_lines)
         else
-            self.line_data = buffer
+            self.line_data = buffer:sub(match_pos)
             break
         end
     end -- end wile
 
+end
+
+function CustomLineBreakerFeed:finished()
+    if self.line_data ~= nil and self.line_data ~= '' then
+        self:new_event(self.line_data, 1, self.line_data:len())
+    end
 end
 
 {{sourcetype}}.feeder = CustomLineBreakerFeed:new()

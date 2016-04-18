@@ -120,9 +120,9 @@ function DefaultLineBreakerFeed:feed(data)
     return result
 end
 
-function DefaultLineBreakerFeed:finished(data)
+function DefaultLineBreakerFeed:finished()
     result = {}
-    if self.line_data ~= nil then
+    if self.line_data ~= nil and self.line_data ~= '' then
         result[1] = self:new_event(self.line_data, 1, self.line_data:len())
     end
     return result

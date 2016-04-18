@@ -282,6 +282,8 @@ function match_time(subject, regex, options, ctx)
   return ret
 end
 
+_pattern = nil
+
 local function extract_event_time(text,pattern,names)
     local namegroup = nil
     local group = match_time(text,pattern)
@@ -299,7 +301,8 @@ local function extract_event_time(text,pattern,names)
             count = count + 1
         end
         namegroup['_time'] = group[0]
-        namegroup['_pattern'] = pattern
+        --namegroup['_pattern'] = pattern
+        _pattern = pattern
     end
     return namegroup
 end
