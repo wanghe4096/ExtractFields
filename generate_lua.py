@@ -14,6 +14,58 @@ import spl_common
 from distutils.util import strtobool
 from jinja2 import Environment, FileSystemLoader
 
+def time_Pattern_Parse(patterns,debug=False):
+    l_tmp = list()
+    for k,v in patterns.items():
+        name = re.findall('\?\P\<([a-zA-Z_]+?)\>',v)
+        names_list = list()
+        for n in name:
+            names_list.append('\'' + n + '\'')
+        names = '{' + ','.join(names_list) + '}'
+        if debug:
+            print '====names====\n',names
+        tmp = '{REGEX=' + '\'' + v + '\'' + ',names=' + '{' + ','.join(names_list) + '}' + '}'
+        if debug:
+            print '====tmp====\n',tmp
+        l_tmp.append(tmp)
+    info = '{' + ','.join(l_tmp) + '}'
+    if debug:
+        print '====info====\n',info
+    return info.replace('/','\/')
+
+def getTimeInfoTuplet(timestampconfilename):
+    text = readText(timestampconfilename)
+    text = text.replace('\\n', '\n').replace('\n\n', '\n')
+    exec(text)
+    compiledTimePatterns = compilePatterns(timePatterns)
+    times = time_Pattern_Parse(compiledTimePatterns)
+    compiledDatePatterns = compilePatterns(datePatterns)
+    dates = time_Pattern_Parse(compiledDatePatterns)
+    compiledDateTimePatterns = compilePatterns(datetimePatterns)
+    datetimes = time_Pattern_Parse(compiledDateTimePatterns)
+
+    timeInfoTuplet_list = [times, dates, datetimes]
+    timeInfoTuplet = '{' + ','.join(timeInfoTuplet_list) + '}'
+    return timeInfoTuplet
+
+def readText(filename):
+    try:
+        f = open(filename, 'r')
+        text = f.read()
+        f.close()
+        return text
+    except Exception, e:
+        print '*** Error reading file', filename, ':', e
+        return ""
+
+def compilePatterns(formats):
+    compiledDict = {}
+    for (k,format) in formats.items():
+        compiledDict[k] = format
+    return compiledDict
+
+timeinfo = getTimeInfoTuplet('anonymizer/anonymizer-time.ini')
+
 stanza_re = re.compile('\[\[([a-zA-z0-9\-:]*?)\]\]')
 
 def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
@@ -38,7 +90,7 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
         if True:
             transform_define = transforms[stanza_name]
             regex_expr = transform_define['REGEX'].replace('/','\/')
-            print expr_name,stanza_name,regex_expr
+            #print expr_name,stanza_name,regex_expr
             if expr_name == '_':
                 regex_prefix = name_group_prefix
             else:
@@ -96,6 +148,23 @@ class DataProcessor(object):
         else:
             return rv 
 
+    def get_SOURCE_KEY(self, step_name):
+        transform_define = transforms[step_name]
+        SOURCE_KEY = transform_define['SOURCE_KEY']
+        return SOURCE_KEY
+
+    def get_DEST_KEY(self, step_name):
+        transform_define = transforms[step_name]
+        DEST_KEY = transform_define['DEST_KEY']
+        return DEST_KEY
+
+    def get_names_raw(self, step_name):
+        transform_define = transforms[step_name]
+        regex_expr = transform_define['REGEX']
+        rv = build_normal_regex(regex_expr, transforms)
+        name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        return name
+
     def get_names(self, step_name):
         transform_define = transforms[step_name]
         regex_expr = transform_define['REGEX']
@@ -132,12 +201,14 @@ def extract(source_type, props, transforms, log_file):
     line_merge = strtobool(line_merge)
     line_breaker = props[source_type].get('LINE_BREAKER', props['default'].get('LINE_BREAKER', '([\\r\\n]+)'))
     default_line_breaker = line_breaker in ['([\\r\\n]+)', '[\\r\\n]+']
+    BREAK_ONLY_BEFORE = props[source_type].get('BREAK_ONLY_BEFORE', props['default'].get('BREAK_ONLY_BEFORE', 'True'))
 
     options = {
         'default_linebreaker': default_line_breaker,
         'custom_linebreaker': not default_line_breaker,
         'linebreaker_regex': line_breaker,
-        'multiline': line_merge and True
+        'multiline': line_merge and True,
+        'BREAK_ONLY_BEFORE': BREAK_ONLY_BEFORE
     }
 
     processor = DataProcessor(props, transforms)

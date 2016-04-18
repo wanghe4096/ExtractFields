@@ -28,17 +28,20 @@ local i = nil
 local nexti = nil
 local line_data = nil
 
-local multiline_re = '\\d+:\\d+:\\d+'
 local linecount = 0
 local event = ''
-local mt = nil
+local events = nil
 local multiline = nil
+
+require('dateparse.DateParse')
 
 
 local MultiLineEventFeed = {
-    delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
-    line_data = nil     -- only a small mount data <- buffer
+    --time_extract = nil --time extract
+    multiline_re = '' ,--'\\d+:\\d+:\\d+',
+    line_data = nil
 }
+
 
 function MultiLineEventFeed:new(o)
     o = o or {}
@@ -48,12 +51,30 @@ function MultiLineEventFeed:new(o)
 end
 
 function MultiLineEventFeed:new_event(event_lines, b, e)
-    mt = nil
-    if rex_pcre.new(multiline_re):exec(event_lines:sub(b,e)) then
+    events = nil
+    if self.multiline_re == '' then
+        self.multiline_re = getAllMatches(event_lines:sub(b,e))._pattern
+        --self.multiline_re = '\\d+:\\d+:\\d+'
+    end
+    print('=====multiline_re=====')
+    print(self.multiline_re)
+    --if rex_pcre.new(self.multiline_re):exec(event_lines:sub(b,e)) then
+    if match_time(event_lines:sub(b,e),self.multiline_re) then
         if linecount >= 1 then
-            print('===========')
+            print('=====event======')
             print(event)
-            --mt = match(event['_raw'])
+            events = {}
+            if reg == '' then
+                events.event = event
+            else
+                events.event = match(event)
+            end
+            events.time = getAllMatches(event)
+            print_table(events.time)
+            if not events.event then
+                table.insert(match_fail,event)
+                events = nil
+            end
             event = ''
             linecount = 0
         end
@@ -63,7 +84,7 @@ function MultiLineEventFeed:new_event(event_lines, b, e)
         linecount = linecount + 1
         event = event .. '\n' .. event_lines:sub(b,e)
     end
-    return mt
+    return events
 end
 
 function MultiLineEventFeed:feed(data)
@@ -126,6 +147,7 @@ catalina.feeder = MultiLineEventFeed:new()
 
 
 local ffi = require('ffi')
+--[[
 ffi.cdef[[
 typedef struct real_pcre pcre;
 typedef struct pcre_extra pcre_extra;

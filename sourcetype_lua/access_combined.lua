@@ -2,16 +2,16 @@
 --49444250/104.022794008=475321.30310014
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
-local oneapm = {}
-oneapm.namestype = {status='int',client_ip='string',server_ip='string',client_dev_message='string',timestamp='string',bytes='int',uri='string',uri__domain='string',uri_path='string',uri_='string',version='string',uri_query='string',server_port='int',file='string',response_size='int',root='string',method='string',response_time='double'}
+local access_combined = {}
+access_combined.namestype = {status='',cookie='',ident='',referer__domain='',bytes='',uri='',referer_='',uri__domain='',uri_path='',uri_='',version='',req_time='',user='',file='',useragent='',referer='',clientip='string',other='',root='',method='',uri_query=''}
 -- build series transform | report | extract
 -- report
 
 
 
-local reg = "^(?<client_ip>\\S+)\\s(?<server_ip>\\S+):(?<server_port>\\d+)\\s(?<response_time>\\d*\\.\\d+|(?:0x[a-fA-F0-9]+|\\d+))\\s-\\s\\[(?<timestamp>[^\\]]*+)\\]\\s(?:\"\\s*+(?<method>[^\\s\"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s\"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\\"|[^\\s\\?\\/\"])++)\\/++)?(?:(?:\\\\\"|[^\\s\\?\\/\"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s\"]++))*)?\\s*+\")\\s(?<status>\\d+)\\s(?<response_size>\\d+)\\s(?<bytes>\\d+)\\s\\\"-\\\"\\s(?<client_dev_message>.*)"
-oneapm.names = {'client_ip','server_ip','server_port','response_time','timestamp','method','uri','uri_','uri__domain','uri_path','root','file','uri_query','version','status','response_size','bytes','client_dev_message'}
-local n = 18
+local reg = "^(?<clientip>\\S+)\\s++(?<ident>\\S+)\\s++(?<user>\\S+)\\s++\\[(?<req_time>[^\\]]*+)\\]\\s++(?:\"\\s*+(?<method>[^\\s\"]++)?(?:\\s++(?:(?<uri>(?<uri_>(?<uri__domain>\\w++:\\/\\/[^\\/\\s\"]++))?+(?<uri_path>(?:\\/++(?<root>(?:\\\\\"|[^\\s\\?\\/\"])++)\\/++)?(?:(?:\\\\\"|[^\\s\\?\\/\"])*+\\/++)*(?<file>[^\\s\\?\\/]+)?)(?:\\?(?<uri_query>[^\\s]*))?))(?:\\s++(?<version>[^\\s\"]++))*)?\\s*+\")\\s++(?<status>\\S+)\\s++(?<bytes>\\S+)(?:\\s++\"(?<referer>(?<referer_>(?<referer__domain>\\w++:\\/\\/[^\\/\\s\"]++))?+[^\"]*+)\"(?:\\s++\"(?<useragent>[^\"]*+)\"(?:\\s++\"(?<cookie>[^\"]*+)\")?+)?+)?(?<other>.*)"
+access_combined.names = {'clientip','ident','user','req_time','method','uri','uri_','uri__domain','uri_path','root','file','uri_query','version','status','bytes','referer','referer_','referer__domain','useragent','cookie','other'}
+local n = 21
 
 
 
@@ -23,8 +23,8 @@ if not reg then
     reg = ''
 end
 
-if not oneapm.names then
-    oneapm.names = {}
+if not access_combined.names then
+    access_combined.names = {}
 end
 
 if not n then
@@ -129,7 +129,7 @@ function DefaultLineBreakerFeed:finished(data)
 end
 
 
-oneapm.feeder = DefaultLineBreakerFeed:new()
+access_combined.feeder = DefaultLineBreakerFeed:new()
 
 
 local ffi = require('ffi')
@@ -187,16 +187,16 @@ local f = io.open(data_file, "rb")
 while true do
     local block = f:read(buffer_size)
     if not block then
-        oneapm.feeder:finished()
+        access_combined.feeder:finished()
         break
     end
-    oneapm.feeder:feed(block)
+    access_combined.feeder:feed(block)
 end
 f:close()
 print('===fail match===')
 print_table(match_fail)
 --[[
-    aa = oneapm.feeder:feed(block)
+    aa = access_combined.feeder:feed(block)
 
     for k,v in pairs(aa) do
         print('=======fields========')
@@ -208,5 +208,5 @@ print_table(match_fail)
 --pcre.pcre_free_study(pcre.re_stu)
 --pcre.pcre_free(pcre.re)
 module(...)
-return oneapm
+return access_combined
 -- end of file

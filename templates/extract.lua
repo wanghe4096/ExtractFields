@@ -57,17 +57,23 @@ local i = nil
 local nexti = nil
 local line_data = nil
 
-local multiline_re = '\\d+:\\d+:\\d+'
 local linecount = 0
 local event = ''
-local mt = nil
+local events = nil
 local multiline = nil
+local match_fail = {}
+match_fail.event = {}
+match_fail.time = {}
+
+require('dateparse.DateParse')
 
 {% if options.get('multiline') %}
 local MultiLineEventFeed = {
-    delimiter = nil,    -- detected delimiter, default nil, might be [\r\n | \n]
-    line_data = nil     -- only a small mount data <- buffer
+    --time_extract = nil --time extract
+    multiline_re = '{{options.get('BREAK_ONLY_BEFORE')}}' ,--'\\d+:\\d+:\\d+',
+    line_data = nil
 }
+
 
 function MultiLineEventFeed:new(o)
     o = o or {}
@@ -77,12 +83,40 @@ function MultiLineEventFeed:new(o)
 end
 
 function MultiLineEventFeed:new_event(event_lines, b, e)
-    mt = nil
-    if rex_pcre.new(multiline_re):exec(event_lines:sub(b,e)) then
+    events = nil
+    if self.multiline_re == '' then
+        self.multiline_re = getAllMatches(event_lines:sub(b,e))._pattern
+        --self.multiline_re = '\\d+:\\d+:\\d+'
+    end
+    print('=====multiline_re=====')
+    print(self.multiline_re)
+    --if rex_pcre.new(self.multiline_re):exec(event_lines:sub(b,e)) then
+    if match_time(event_lines:sub(b,e),self.multiline_re) then
         if linecount >= 1 then
-            print('===========')
+            print('=====event======')
             print(event)
-            --mt = match(event['_raw'])
+            events = {}
+            if reg == '' then
+                events.event = event
+            else
+                events.event = match(event)
+            end
+            events.time = getAllMatches(event)
+            if not events.event then
+                print('fail match event:',event)
+                table.insert(match_fail.event,event)
+                events = nil
+            elseif not events.time then
+                print('fail match time:',event)
+                table.insert(match_fail.time,event)
+                events = nil
+            end
+            if events then
+                print('===events.time===')
+                print_table(events.time)
+                print('===events.event===')
+                print_table(events.event)
+            end
             event = ''
             linecount = 0
         end
@@ -92,7 +126,7 @@ function MultiLineEventFeed:new_event(event_lines, b, e)
         linecount = linecount + 1
         event = event .. '\n' .. event_lines:sub(b,e)
     end
-    return mt
+    return events
 end
 
 function MultiLineEventFeed:feed(data)
@@ -167,8 +201,25 @@ function DefaultLineBreakerFeed:new(o)
 end
 
 function DefaultLineBreakerFeed:new_event(event_lines, b, e)
-    --print_table(match(event_lines:sub(b, e)))
-    return match(event_lines:sub(b, e))
+    events = {}
+    events.time = getAllMatches(event_lines:sub(b,e))
+    events.event = match(event_lines:sub(b, e))
+    if not events.event then
+        print('fail match event:',event_lines:sub(b, e))
+        table.insert(match_fail.event,event_lines:sub(b, e))
+        events = nil
+    elseif not events.time then
+        print('fail match time:',event_lines:sub(b, e))
+        table.insert(match_fail.time,event_lines:sub(b, e))
+        events = nil
+    end
+    if events then
+        print('===events.time===')
+        print_table(events.time)
+        print('===events.event===')
+        print_table(events.event)
+    end
+    return events
 end
 
 function DefaultLineBreakerFeed:feed(data)
@@ -269,6 +320,7 @@ end
 {% endif %}
 
 local ffi = require('ffi')
+--[[
 ffi.cdef[[
 typedef struct real_pcre pcre;
 typedef struct pcre_extra pcre_extra;
@@ -328,6 +380,8 @@ while true do
     {{sourcetype}}.feeder:feed(block)
 end
 f:close()
+print('===fail match===')
+print_table(match_fail)
 --[[
     aa = {{sourcetype}}.feeder:feed(block)
 
