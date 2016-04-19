@@ -98,7 +98,7 @@ def build_normal_regex(regex_expr, transforms, name_group_prefix=''):
         if True:
             transform_define = transforms[stanza_name]
             regex_expr = transform_define['REGEX'].replace('/','\/')
-            #print expr_name,stanza_name,regex_expr
+            print expr_name,stanza_name,regex_expr,'FORMAT:',transform_define.get('FORMAT',transforms['default']['FORMAT'])
             if expr_name == '_':
                 regex_prefix = name_group_prefix
             else:
@@ -180,6 +180,8 @@ class DataProcessor(object):
         regex_expr = transform_define['REGEX']
         rv = build_normal_regex(regex_expr, transforms)
         name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        name1 = re.findall('\?\P\<([a-zA-Z_]+?)\>',rv)
+        name.extend(name1)
         names = list()
         for n in name:
             names.append('\'' + n + '\'')
@@ -190,6 +192,8 @@ class DataProcessor(object):
         regex_expr = transform_define['REGEX']
         rv = build_normal_regex(regex_expr, transforms)
         name = re.findall('\?\<([a-zA-Z_]+?)\>',rv)
+        name1 = re.findall('\?\P\<([a-zA-Z_]+?)\>',rv)
+        name.extend(name1)
         return len(name)
 
     def get_normal_name(self, name):
@@ -213,6 +217,7 @@ def extract(source_type, props, transforms, log_file):
 
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('extract.lua')
+    #template = env.get_template('extract.test_source_key.lua')
     namestype_template = env.get_template('sourcetype_namestype.conf')
 
     max_events = int(props[source_type].get('MAX_EVENTS', props['default'].get('MAX_EVENTS', 250)))
@@ -280,7 +285,7 @@ def extract(source_type, props, transforms, log_file):
     try:
         os.system("wc -l %s" % (log_file))
         timebegin = time.time()
-        os.system("luajit %s %s" % (fgenerate_lua, log_file))
+        #os.system("luajit %s %s" % (fgenerate_lua, log_file))
         timeend = time.time()
         times = timeend - timebegin
         print 'times:',times

@@ -205,6 +205,8 @@ local function options2flags(options)
   return f
 end
 
+local _n = nil
+
 function match_time(subject, regex, options, ctx)
   local o = 0
   local pos
@@ -233,6 +235,7 @@ function match_time(subject, regex, options, ctx)
     --re_stu = L.pcre_study(re, L.PCRE_STUDY_JIT_COMPILE, errptr)
     L.pcre_fullinfo(re, nil, 2 --[[PCRE_INFO_CAPTURECOUNT]], intptr)
     n = intptr[0]
+    _n = n
     size = (n + 1) * 3
     ovector = ffi.new('int['..size..']')
   end
@@ -284,6 +287,38 @@ end
 
 _pattern = nil
 
+local _pcre = ffi.load('pcre')
+local _errptr = nil
+local _intptr = nil
+local _re = nil
+
+local _size = nil
+local _ovector = nil
+local _re_stu = nil
+local _ret = {}
+
+
+function match_datetime(subject)
+  if not _ovector then
+     _errptr = ffi.new('const char*[1]')
+     _intptr = ffi.new('int[1]')
+     _re = _pcre.pcre_compile(_pattern, 0, _errptr, _intptr, nil)
+
+    _size = (_n + 1) * 3
+    _ovector = ffi.new('int['.._size..']')
+    _re_stu = _pcre.pcre_study(_re, _pcre.PCRE_STUDY_JIT_COMPILE, _errptr)
+  end
+  _pcre.pcre_exec(_re, _re_stu, subject, #subject, 0, 0, _ovector, _size)
+  for i=0, _n*2, 2 do
+    if _ovector[i] >= 0 then
+      _ret[i/2] = subject:sub(_ovector[i]+1, _ovector[i+1])
+    end
+  end
+  return _ret
+end
+
+time_names = nil
+
 local function extract_event_time(text,pattern,names)
     local namegroup = nil
     local group = match_time(text,pattern)
@@ -303,6 +338,7 @@ local function extract_event_time(text,pattern,names)
         namegroup['_time'] = group[0]
         --namegroup['_pattern'] = pattern
         _pattern = pattern
+        time_names = names
     end
     return namegroup
 end
@@ -420,7 +456,10 @@ end
 --text = '120.2.2.157 10.162.206.227:8080 0.017 - [21/Nov/2015:08:00:14 +0800] "POST mobile.oneapm.com/mobile/data" 200 858 566 "-" "Dalvik/1.6.0 Compatible (TVM xx; YunOS 3.0; Linux; U; Android 4.4.4 Compatible; AF101_HCB Build/KTU84P)"'
 
 --text = '221.2.21.32 10.173.3.39:8080 0.009 - [21/Nov/2015:08:08:08 +0800] "POST mobile.oneapm.com/mobile/data" 200 719 566 "-" "Dalvik/1.6.0 (Linux; U; Android 4.4.4; MI 3W MIUI/5.11.13)"'
---[[
+
+text = '17-Aug-2015 16:12:14.997 INFO [Thread-41] com.duowan.yy.utility.ToolUtility.doGet 执行Get===>http://dcmnew.sysop.duowan.com//webservice/'
+
+
 function print_table(f)
     for k,v in pairs(f) do
         print(k,v)
@@ -435,4 +474,9 @@ print_table(datetimematch)
 else
     print('no matchs')
 end
-]]
+print('===_pattern===\n',_pattern)
+print('===_n===\n',_n)
+print_table(match_datetime(text))
+print('===time_names===\n')
+print_table(time_names)
+

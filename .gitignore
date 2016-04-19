@@ -1,3 +1,5 @@
+sourcetype_lua/*.lua
+namestype/*.conf
 nohup.out
 tests/sentry/api/endpoints/test_host_stream.py
 *.rdb

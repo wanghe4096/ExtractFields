@@ -3,14 +3,14 @@
 --49444250/125.411713839=394255.4366450579
 local rex_pcre = require "rex_pcre"
 local {{sourcetype}} = {}
-{{sourcetype}}.namestype = {{ namestype }}
+{{sourcetype}}.event_fieldstypes = {{ namestype }}
 -- build series transform | report | extract
 -- report
 {% if processor.step_reports %}
 {% for step_name in processor.step_reports %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-{{sourcetype}}.names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.event_names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -20,7 +20,7 @@ local n = {{processor.get_names_count(step_name)}}
 {% for step_name in processor.step_transform %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-{{sourcetype}}.names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.event_names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -29,7 +29,7 @@ local n = {{processor.get_names_count(step_name)}}
 {% for step_name in processor.step_extract %}
 
 local reg = "{{ processor.get_full_regex(step_name, True) }}"
-{{sourcetype}}.names = {{ processor.get_names(step_name) }}
+{{sourcetype}}.event_names = {{ processor.get_names(step_name) }}
 local n = {{processor.get_names_count(step_name)}}
 
 {% endfor %}
@@ -43,8 +43,8 @@ if not reg then
     reg = ''
 end
 
-if not {{sourcetype}}.names then
-    {{sourcetype}}.names = {}
+if not {{sourcetype}}.event_names then
+    {{sourcetype}}.event_names = {}
 end
 
 if not n then
@@ -203,7 +203,12 @@ end
 
 function DefaultLineBreakerFeed:new_event(event_lines, b, e)
     events = {}
-    events.time = getAllMatches(event_lines:sub(b,e))
+    if not _pattern then
+        getAllMatches(event_lines:sub(b,e))
+        {{sourcetype}}.time_names = time_names
+    end
+    events.time = match_datetime(event_lines:sub(b,e))
+    --events.time = getAllMatches(event_lines:sub(b,e))
     events.event = match(event_lines:sub(b, e))
     if not events.event then
         print('fail match event:',event_lines:sub(b, e))
@@ -214,12 +219,14 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
         table.insert(match_fail.time,event_lines:sub(b, e))
         events = nil
     end
+    --[[
     if events then
         print('===events.time===')
         print_table(events.time)
         print('===events.event===')
         print_table(events.event)
     end
+    ]]
     return events
 end
 
@@ -342,7 +349,7 @@ local ret = {}
 local st = n + 1 
 
 
-function match(subject, regex)
+function match(subject)
   pcre.pcre_exec(re, re_stu, subject, #subject, 0, 0, ovector, size)
   for i=0, n*2, 2 do
     if ovector[i] >= 0 then
@@ -379,11 +386,13 @@ while true do
 end
 f:close()
 print('===fail match===')
-print_table(match_fail)
+print_table(match_fail.event)
+print_table(match_fail.time)
 
 
 --pcre.pcre_free_study(pcre.re_stu)
 --pcre.pcre_free(pcre.re)
 module(...)
 return {{sourcetype}}
+--return {{sourcetype}}.feeder,event_names,event_fieldstypes,time_names
 -- end of file
