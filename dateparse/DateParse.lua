@@ -457,8 +457,9 @@ end
 
 --text = '221.2.21.32 10.173.3.39:8080 0.009 - [21/Nov/2015:08:08:08 +0800] "POST mobile.oneapm.com/mobile/data" 200 719 566 "-" "Dalvik/1.6.0 (Linux; U; Android 4.4.4; MI 3W MIUI/5.11.13)"'
 
-text = '17-Aug-2015 16:12:14.997 INFO [Thread-41] com.duowan.yy.utility.ToolUtility.doGet 执行Get===>http://dcmnew.sysop.duowan.com//webservice/'
+--text = '17-Aug-2015 16:12:14.997 INFO [Thread-41] com.duowan.yy.utility.ToolUtility.doGet 执行Get===>http://dcmnew.sysop.duowan.com//webservice/'
 
+--[[
 
 function print_table(f)
     for k,v in pairs(f) do
@@ -479,4 +480,4 @@ print('===_n===\n',_n)
 print_table(match_datetime(text))
 print('===time_names===\n')
 print_table(time_names)
-
+]]

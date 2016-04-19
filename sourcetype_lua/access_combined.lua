@@ -67,8 +67,8 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
         getAllMatches(event_lines:sub(b,e))
         access_combined.time_names = time_names
     end
-    --events.time = match_datetime(event_lines:sub(b,e))
-    events.time = getAllMatches(event_lines:sub(b,e))
+    events.time = match_datetime(event_lines:sub(b,e))
+    --events.time = getAllMatches(event_lines:sub(b,e))
     events.event = match(event_lines:sub(b, e))
     if not events.event then
         print('fail match event:',event_lines:sub(b, e))
@@ -79,14 +79,16 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
         table.insert(match_fail.time,event_lines:sub(b, e))
         events = nil
     end
-    --[[
+
     if events then
+        print('===begin===')
         print('===events.time===')
         print_table(events.time)
         print('===events.event===')
         print_table(events.event)
+        print('===end===')
     end
-    ]]
+
     return events
 end
 

@@ -3,6 +3,7 @@
     测试　日志文件　解析
   
     用法: <bin>, <conf_path> <source_type> <log_file>,  list the source type's execute plan
+    eg:
     python generate_lua.py etc access_combined samples/apache                  ok
     python generate_lua.py etc splunkd_access samples/splunkd_access.log    test
 
@@ -285,7 +286,7 @@ def extract(source_type, props, transforms, log_file):
     try:
         os.system("wc -l %s" % (log_file))
         timebegin = time.time()
-        #os.system("luajit %s %s" % (fgenerate_lua, log_file))
+        os.system("luajit %s %s" % (fgenerate_lua, log_file))
         timeend = time.time()
         times = timeend - timebegin
         print 'times:',times

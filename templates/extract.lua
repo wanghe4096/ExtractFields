@@ -219,14 +219,16 @@ function DefaultLineBreakerFeed:new_event(event_lines, b, e)
         table.insert(match_fail.time,event_lines:sub(b, e))
         events = nil
     end
-    --[[
+
     if events then
+        print('===begin===')
         print('===events.time===')
         print_table(events.time)
         print('===events.event===')
         print_table(events.event)
+        print('===end===')
     end
-    ]]
+
     return events
 end
 
